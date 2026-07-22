@@ -93,6 +93,10 @@ export default function MapCanvas({
       canvas.width = w * dpr;
       canvas.height = h * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      // Redraw after resize to prevent canvas clear from blanking content
+      if (paused) {
+        draw(ctx, canvas.clientWidth, canvas.clientHeight, 12000);
+      }
     };
     resize();
     const ro = new ResizeObserver(resize);
