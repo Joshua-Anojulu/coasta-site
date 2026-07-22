@@ -15,7 +15,7 @@ export default function Catches() {
   return (
     <section className="py-32 md:py-44">
       <div className="overflow-hidden border-y border-white/5 py-3 text-xs text-fog-dim">
-        <div className="marquee-track gap-10">
+        <div className="marquee-track gap-10" aria-hidden="true">
           {[...TICKER, ...TICKER].map((t, i) => (
             <span key={i} className="flex items-center gap-2 whitespace-nowrap">
               {t}

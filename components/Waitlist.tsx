@@ -71,7 +71,7 @@ export default function Waitlist() {
                 {status === "sending" ? "Joining..." : "Join waitlist"}
               </button>
             </div>
-            {status === "error" && <p className="mt-3 text-sm text-alert">{message}</p>}
+            {status === "error" && <p className="mt-3 text-sm text-alert" role="alert">{message}</p>}
           </form>
         )}
       </div>

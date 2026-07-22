@@ -28,7 +28,7 @@ export default function BlindSpot() {
           block lanes for miles of backup. Coasta watches every feed at once.
         </p>
       </div>
-      <div className="mt-16 grid grid-cols-4 gap-1.5 sm:grid-cols-6 md:grid-cols-8">
+      <div className="mt-16 grid grid-cols-4 gap-1.5 sm:grid-cols-6 md:grid-cols-8" aria-hidden="true">
         {TILES.map((id, i) => (
           <div
             key={id}
