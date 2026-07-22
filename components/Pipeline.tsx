@@ -36,6 +36,7 @@ export default function Pipeline() {
             className="absolute left-[18%] top-[32%] bg-asphalt/85 px-2 py-1 text-[11px] text-signal"
           >
             POLICE VEHICLE <motion.span className="tabular-nums">{reduced ? "96%" : confText}</motion.span>
+            <span className="ml-1.5 border border-white/15 px-1 py-0.5 align-middle text-[9px] text-fog-dim">SIM</span>
           </motion.div>
 
           <motion.div
@@ -43,6 +44,7 @@ export default function Pipeline() {
             className="absolute bottom-4 right-4 border border-alert/50 bg-asphalt/90 p-3 text-xs"
           >
             <span className="text-alert">ALERT CONFIRMED</span>
+            <span className="ml-2 border border-white/15 px-1.5 py-0.5 text-[10px] text-fog-dim">SIM</span>
             <span className="ml-2 text-fog-dim">pushed to nearby drivers</span>
           </motion.div>
         </div>
