@@ -17,6 +17,13 @@ export const metadata: Metadata = {
   title: "Coasta | See the road before you reach it",
   description:
     "Coasta turns DFW traffic cameras into an AI detection network. Police, crashes, and hazards, spotted the moment a camera sees them. Join the waitlist.",
+  metadataBase: new URL("https://coasta.app"),
+  openGraph: {
+    title: "Coasta | See the road before you reach it",
+    description:
+      "AI reads DFW traffic cameras and warns you about police, crashes, and hazards. Join the waitlist.",
+    type: "website",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

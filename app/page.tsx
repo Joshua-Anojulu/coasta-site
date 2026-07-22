@@ -6,14 +6,18 @@ import Catches from "@/components/Catches";
 import Coverage from "@/components/Coverage";
 import Waitlist from "@/components/Waitlist";
 import Footer from "@/components/Footer";
+
 export default function Page() {
   return (
     <main>
       <Hero />
+      <div className="lane-divider" />
       <BlindSpot />
       <Pipeline />
+      <div className="lane-divider" />
       <PhonePreview />
       <Catches />
+      <div className="lane-divider" />
       <Coverage />
       <Waitlist />
       <Footer />
