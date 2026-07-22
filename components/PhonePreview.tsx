@@ -34,7 +34,10 @@ export default function PhonePreview() {
             <div className="space-y-2 px-3 pb-5">
               {TIMELINE.map((e) => (
                 <div key={e.id} className="rounded-lg border border-white/10 bg-surface p-2.5 text-[11px]">
-                  <span className={KIND_COLOR[e.kind]}>{e.label}</span>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={KIND_COLOR[e.kind]}>{e.label}</span>
+                    <span className="border border-white/15 px-1.5 py-0.5 text-[9px] text-fog-dim">SIM</span>
+                  </div>
                   <div className="mt-0.5 text-fog-dim">{e.road}</div>
                 </div>
               ))}
