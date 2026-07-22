@@ -43,8 +43,8 @@ export default function Hero() {
       <div className="absolute right-5 top-24 md:right-10">
         <AlertCard state={state} />
       </div>
-      <div className="absolute bottom-12 left-5 max-w-3xl md:left-10">
-        <h1 className="font-display text-5xl uppercase leading-[0.95] md:text-8xl">
+      <div className="absolute bottom-12 left-5 max-w-5xl md:left-10">
+        <h1 className="font-display text-[min(9vw,6rem)] uppercase leading-[0.95] whitespace-nowrap">
           Every camera.<br />Now a sensor.
         </h1>
         <p className="mt-5 max-w-md text-sm text-fog-dim">
