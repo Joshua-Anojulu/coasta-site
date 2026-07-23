@@ -1,44 +1,196 @@
 "use client";
 import { useEffect, useRef } from "react";
-import { HIGHWAYS, CAMERAS, project } from "@/lib/dfw/geometry";
+import { ROAD_SEGMENTS, CAMERAS, WATER, project, type RoadSegment } from "@/lib/dfw/geometry";
 import { TIMELINE } from "@/lib/replay/timeline";
 import { getReplayState } from "@/lib/replay/engine";
 
+// Mirrors the palette tokens in app/globals.css (canvas cannot read CSS custom
+// properties per frame); keep in sync with --color-steel/-signal/-alert/-fog-dim.
 const STEEL = "#4a6b8a";
 const SIGNAL = "#ffb000";
 const ALERT = "#ff3b30";
+const FOG_DIM = "#8a919c";
 
-function draw(ctx: CanvasRenderingContext2D, w: number, h: number, tMs: number) {
-  ctx.clearRect(0, 0, w, h);
-  const s = getReplayState(TIMELINE, tMs);
+const GRID_SPACING = 26;
+const LABEL_MIN_WIDTH = 480;
+const LABELS: { text: string; lonlat: readonly [number, number] }[] = [
+  { text: "US-75", lonlat: [-96.752, 32.98] },
+  { text: "I-635", lonlat: [-96.701, 32.918] },
+  { text: "I-30", lonlat: [-97.1, 32.757] },
+  { text: "I-35W", lonlat: [-97.33, 32.9] },
+  { text: "DNT", lonlat: [-96.828, 33.02] },
+];
 
-  for (const hw of HIGHWAYS) {
+export type TrafficDot = {
+  segmentId: string;
+  arcOffset: number;
+  speed: number;
+  direction: 1 | -1;
+};
+
+// Deterministic (no Math.random): same segments in -> same 40 dots out.
+export function createTrafficDots(segments: readonly RoadSegment[]): TrafficDot[] {
+  const interstates = segments.filter((s) => s.cls === "interstate");
+  if (interstates.length === 0) return [];
+  const fract = (v: number) => v - Math.floor(v);
+  const dots: TrafficDot[] = [];
+  for (let i = 0; i < 40; i++) {
+    const seg = interstates[(i * 7) % interstates.length];
+    const r = fract(Math.sin(i * 127.1 + 311.7) * 43758.5453);
+    dots.push({
+      segmentId: seg.id,
+      arcOffset: r,
+      speed: 0.02 + 0.03 * fract(r * 7.31),
+      direction: i % 2 === 0 ? 1 : -1,
+    });
+  }
+  return dots;
+}
+
+type SegmentArc = {
+  points: readonly (readonly [number, number])[];
+  cum: number[];
+  total: number;
+};
+
+const SEGMENT_ARCS = new Map<string, SegmentArc>(
+  ROAD_SEGMENTS.map((seg) => {
+    const cum: number[] = [0];
+    let total = 0;
+    for (let i = 1; i < seg.points.length; i++) {
+      const [lonA, latA] = seg.points[i - 1];
+      const [lonB, latB] = seg.points[i];
+      const kx = Math.cos(((latA + latB) / 2) * (Math.PI / 180));
+      total += Math.hypot((lonB - lonA) * kx, latB - latA);
+      cum.push(total);
+    }
+    return [seg.id, { points: seg.points, cum, total: total || 1 }];
+  }),
+);
+
+const TRAFFIC_DOTS = createTrafficDots(ROAD_SEGMENTS);
+
+function dotLonLat(dot: TrafficDot, tSec: number): readonly [number, number] {
+  const arc = SEGMENT_ARCS.get(dot.segmentId);
+  if (!arc) return [0, 0];
+  let p = dot.arcOffset + dot.direction * dot.speed * tSec;
+  p = ((p % 1) + 1) % 1;
+  const target = p * arc.total;
+  let i = 1;
+  while (i < arc.cum.length - 1 && arc.cum[i] < target) i++;
+  const span = arc.cum[i] - arc.cum[i - 1] || 1;
+  const f = (target - arc.cum[i - 1]) / span;
+  const [lonA, latA] = arc.points[i - 1];
+  const [lonB, latB] = arc.points[i];
+  return [lonA + (lonB - lonA) * f, latA + (latB - latA) * f];
+}
+
+const GLOW_PASSES: Record<string, [width: number, alpha: number][]> = {
+  interstate: [[6, 0.08], [3, 0.16], [1.6, 0.7]],
+  other: [[3, 0.1], [1, 0.45]],
+};
+
+function buildBackground(w: number, h: number, dpr: number, fontFamily: string) {
+  const bg = document.createElement("canvas");
+  bg.width = Math.max(1, Math.round(w * dpr));
+  bg.height = Math.max(1, Math.round(h * dpr));
+  const ctx = bg.getContext("2d");
+  if (!ctx) return bg;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  ctx.fillStyle = STEEL;
+  ctx.globalAlpha = 0.05;
+  for (let gx = GRID_SPACING / 2; gx < w; gx += GRID_SPACING) {
+    for (let gy = GRID_SPACING / 2; gy < h; gy += GRID_SPACING) {
+      ctx.fillRect(gx, gy, 1, 1);
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  ctx.fillStyle = STEEL;
+  ctx.globalAlpha = 0.08;
+  for (const ring of WATER.rings) {
     ctx.beginPath();
-    hw.points.forEach((p, i) => {
+    ring.forEach((p, i) => {
       const [x, y] = project(p, w, h);
       i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
     });
-    // glow pass then core pass gives roads a neon depth
-    ctx.strokeStyle = STEEL;
-    ctx.globalAlpha = 0.18;
-    ctx.lineWidth = hw.major ? 7 : 4;
-    ctx.stroke();
-    ctx.globalAlpha = hw.major ? 0.85 : 0.5;
-    ctx.lineWidth = hw.major ? 2 : 1.25;
-    ctx.stroke();
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  ctx.strokeStyle = STEEL;
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  for (const clsGroup of ["other", "interstate"] as const) {
+    const segments = ROAD_SEGMENTS.filter((s) =>
+      clsGroup === "interstate" ? s.cls === "interstate" : s.cls !== "interstate",
+    );
+    for (const [width, alpha] of GLOW_PASSES[clsGroup]) {
+      ctx.beginPath();
+      for (const seg of segments) {
+        seg.points.forEach((p, i) => {
+          const [x, y] = project(p, w, h);
+          i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        });
+      }
+      ctx.lineWidth = width;
+      ctx.globalAlpha = alpha;
+      ctx.stroke();
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  if (w >= LABEL_MIN_WIDTH) {
+    ctx.font = `10px ${fontFamily}`;
+    ctx.fillStyle = FOG_DIM;
+    ctx.globalAlpha = 0.8;
+    for (const label of LABELS) {
+      const [x, y] = project(label.lonlat, w, h);
+      ctx.fillText(label.text, x + 4, y - 4);
+    }
     ctx.globalAlpha = 1;
   }
+  return bg;
+}
+
+function drawFrame(
+  ctx: CanvasRenderingContext2D,
+  bg: HTMLCanvasElement,
+  w: number,
+  h: number,
+  tMs: number,
+  paused: boolean,
+) {
+  ctx.clearRect(0, 0, w, h);
+  ctx.drawImage(bg, 0, 0, w, h);
+  const s = getReplayState(TIMELINE, tMs);
 
   for (const cam of CAMERAS) {
     const [x, y] = project(cam.lonlat, w, h);
     const active = s.event?.camId === cam.id;
-    // idle cameras breathe faintly, offset by position so they never sync
-    const breathe = 0.35 + 0.2 * Math.sin(tMs / 900 + x * 0.13);
+    // idle cameras breathe faintly, offset by position so they never sync;
+    // paused mode uses a fixed mid-breath opacity
+    const breathe = paused ? 0.45 : 0.35 + 0.2 * Math.sin(tMs / 900 + x * 0.13);
     ctx.beginPath();
     ctx.arc(x, y, active ? 4 : 2.5, 0, Math.PI * 2);
     ctx.fillStyle = active ? SIGNAL : STEEL;
     ctx.globalAlpha = active ? 1 : breathe;
     ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  if (!paused) {
+    ctx.fillStyle = STEEL;
+    ctx.globalAlpha = 0.35;
+    const tSec = tMs / 1000;
+    for (const dot of TRAFFIC_DOTS) {
+      const [x, y] = project(dotLonLat(dot, tSec), w, h);
+      ctx.beginPath();
+      ctx.arc(x, y, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.globalAlpha = 1;
   }
 
@@ -86,34 +238,51 @@ export default function MapCanvas({
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+    let disposed = false;
+    let bg: HTMLCanvasElement | null = null;
 
-    const resize = () => {
+    const fontFamily = () =>
+      getComputedStyle(document.body).fontFamily || "monospace";
+
+    const staticT = 12000;
+    const currentT = () =>
+      paused
+        ? staticT
+        : performance.now() - (epochRef.current ?? performance.now());
+
+    const rebuild = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       const { clientWidth: w, clientHeight: h } = canvas;
       canvas.width = w * dpr;
       canvas.height = h * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      bg = buildBackground(w, h, dpr, fontFamily());
       // Redraw after resize to prevent canvas clear from blanking content
-      if (paused) {
-        draw(ctx, canvas.clientWidth, canvas.clientHeight, 12000);
-      }
+      drawFrame(ctx, bg, w, h, currentT(), paused);
     };
-    resize();
-    const ro = new ResizeObserver(resize);
+    rebuild();
+    const ro = new ResizeObserver(rebuild);
     ro.observe(canvas);
 
+    // next/font families resolve asynchronously; rebuild once so canvas labels
+    // never keep a fallback face permanently (matters most for paused frames)
+    document.fonts.ready.then(() => {
+      if (!disposed) rebuild();
+    });
+
     if (paused) {
-      draw(ctx, canvas.clientWidth, canvas.clientHeight, 12000);
-      return () => ro.disconnect();
+      return () => { disposed = true; ro.disconnect(); };
     }
     let raf = 0;
     const tick = (now: number) => {
       if (epochRef.current === null) epochRef.current = now;
-      draw(ctx, canvas.clientWidth, canvas.clientHeight, now - epochRef.current);
+      if (bg) {
+        drawFrame(ctx, bg, canvas.clientWidth, canvas.clientHeight, now - epochRef.current, false);
+      }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
-    return () => { cancelAnimationFrame(raf); ro.disconnect(); };
+    return () => { disposed = true; cancelAnimationFrame(raf); ro.disconnect(); };
   }, [paused, epochRef]);
 
   return <canvas ref={canvasRef} className={className} aria-hidden="true" />;
