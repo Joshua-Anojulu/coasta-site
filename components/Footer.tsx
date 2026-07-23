@@ -6,6 +6,15 @@ export default function Footer() {
           C<span className="text-signal">O</span>ASTA
         </span>
         <span>All detections shown on this page are simulated demonstrations.</span>
+        <span>
+          Map data{" "}
+          <a
+            href="https://www.openstreetmap.org/copyright"
+            className="underline decoration-white/20 underline-offset-2 transition-colors duration-300 [transition-timing-function:var(--ease-signal)] hover:text-fog"
+          >
+            &copy; OpenStreetMap contributors
+          </a>
+        </span>
         <span>&copy; 2026 Coasta</span>
       </div>
     </footer>
