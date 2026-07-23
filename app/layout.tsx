@@ -1,11 +1,13 @@
-import type { Metadata } from "next";
-import { Archivo, IBM_Plex_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Plus_Jakarta_Sans, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 
-const archivo = Archivo({
+const plusJakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
-  axes: ["wdth"],
-  variable: "--font-archivo",
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+  adjustFontFallback: true,
+  variable: "--font-plus-jakarta",
 });
 const plexMono = IBM_Plex_Mono({
   subsets: ["latin"],
@@ -26,12 +28,16 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  themeColor: "#ffffff",
+  colorScheme: "light",
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${archivo.variable} ${plexMono.variable}`}>
-      <body className="font-mono antialiased">
+    <html lang="en" className={`${plusJakarta.variable} ${plexMono.variable}`}>
+      <body className="font-sans antialiased">
         {children}
-        <div className="grain" aria-hidden="true" />
       </body>
     </html>
   );

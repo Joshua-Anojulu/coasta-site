@@ -1,45 +1,72 @@
 @import "tailwindcss";
 
 @theme {
-  --color-asphalt: #0a0c0f;
-  --color-surface: #11141a;
-  --color-signal: #ffb000;
-  --color-alert: #ff3b30;
-  --color-steel: #4a6b8a;
-  --color-fog: #e8eaed;
-  --color-fog-dim: #8a919c;
-  --font-display: var(--font-archivo);
+  /* Clearsky palette (replaces Night Watch). See docs/DESIGN.md for the full
+     migration table, contrast table, and rationale. */
+  --color-ground: #ffffff;
+  --color-panel: #f7f9fc;
+  --color-signal: #1d5bd8;
+  --color-confirmed: #b93535;
+  --color-error: #b93535;
+  --color-ink: #0b1b33;
+  --color-ink-2: #4a5a73;
+  --color-border: rgba(11, 27, 51, 0.1);
+  --color-placeholder: #4a5a73;
+  --color-input-border: #4a5a73;
+
+  /* Temporary migration aliases (Night Watch token names). These exist ONLY
+     so components not yet retagged (Nav, Hero, AlertCard, BlindSpot,
+     Pipeline, PhonePreview, Catches, Coverage, Waitlist, Footer) keep
+     compiling and resolve to sane Clearsky values in the interim. Every
+     alias is removed in commit (c) once its consumers retag to the names
+     above; see docs/DESIGN.md's migration table for the consumer lists.
+     --color-steel has NO alias: it was canvas-only (MapCanvas.tsx paint
+     constants, not a Tailwind utility) and is fully retired in commit (b). */
+  --color-asphalt: var(--color-ground);
+  --color-surface: var(--color-panel);
+  --color-alert: var(--color-confirmed);
+  --color-fog: var(--color-ink);
+  --color-fog-dim: var(--color-ink-2);
+
+  --font-display: var(--font-plus-jakarta);
+  --font-sans: var(--font-plus-jakarta);
   --font-mono: var(--font-plex-mono);
   --ease-signal: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+:root {
+  color-scheme: light;
+
+  /* Gradient band values (the Clearsky visual signature). Declared here as
+     the token layer; applied to section backgrounds in a later commit. */
+  --gradient-hero-sky: linear-gradient(180deg, #ddebfc 0%, #ffffff 100%);
+  --gradient-blindspot-pipeline: linear-gradient(180deg, #f2f7fe 0%, #ffffff 100%);
+  --gradient-waitlist-band: linear-gradient(180deg, #dce8fb 0%, #f7f9fc 100%);
+
+  /* Elevation: soft shadow tokens replacing the white inset-shadow
+     treatments (AlertCard, phone shell) that are invisible on light
+     surfaces. */
+  --shadow-card: 0 1px 2px rgba(11, 27, 51, 0.06), 0 8px 24px rgba(11, 27, 51, 0.08);
+  --shadow-card-inset: inset 0 1px 0 rgba(11, 27, 51, 0.04);
+}
+
 body {
-  background: var(--color-asphalt);
-  color: var(--color-fog);
+  background: var(--color-ground);
+  color: var(--color-ink);
 }
 
 .font-display {
-  font-family: var(--font-archivo);
-  font-stretch: 125%;
-  letter-spacing: -0.02em;
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
 }
 
-/* film grain over the whole page, kills the flat digital look */
-.grain {
-  pointer-events: none;
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  opacity: 0.04;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-
-/* dashed lane line used as the section divider motif */
+/* dashed lane line used as the section divider motif; retuned for light -
+   a soft blue rule instead of the dark-theme amber line at higher opacity */
 .lane-divider {
   height: 1px;
   background-image: linear-gradient(90deg, var(--color-signal) 0 40px, transparent 40px 72px);
   background-size: 72px 1px;
-  opacity: 0.35;
+  opacity: 0.18;
 }
 
 @keyframes marquee {
