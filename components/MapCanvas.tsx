@@ -4,12 +4,45 @@ import { ROAD_SEGMENTS, CAMERAS, WATER, project, type RoadSegment } from "@/lib/
 import { TIMELINE } from "@/lib/replay/timeline";
 import { getReplayState } from "@/lib/replay/engine";
 
-// Mirrors the palette tokens in app/globals.css (canvas cannot read CSS custom
-// properties per frame); keep in sync with --color-steel/-signal/-alert/-fog-dim.
-const STEEL = "#4a6b8a";
-const SIGNAL = "#ffb000";
-const ALERT = "#ff3b30";
-const FOG_DIM = "#8a919c";
+// Canvas role palette for the Clearsky "light atlas" map skin. Canvas cannot
+// read CSS custom properties per frame, so these are kept in sync BY HAND
+// with the map-role tones documented in docs/DESIGN.md section 1.1/8 and
+// app/globals.css's --color-panel/-signal/-confirmed/-ink-2 family. Dark
+// theme's low glow alphas (0.05 grid / 0.08 water) do NOT carry over onto a
+// light ground - they read invisible - so every role here is a complete,
+// independently tunable paint definition. Signal hierarchy rule: event
+// markers (detect/confirmed/spotlight/cameraActive) always carry the
+// heaviest visual weight; infrastructure (grid/roads/cameraIdle/dot) stays
+// quiet. See docs/DESIGN.md section 8 for the accepted decorative-contrast
+// trade-off on roadInterstate/cameraIdle.
+type Paint = { readonly color: string; readonly alpha: number; readonly width?: number };
+
+const MAP_COLORS = {
+  panel: { color: "#F7F9FC", alpha: 1 },
+  grid: { color: "#6B8CC4", alpha: 0.18 },
+  water: { color: "#CBDDF2", alpha: 1 },
+  roadInterstate: { color: "#5A7FBC", alpha: 0.9, width: 2.2 },
+  roadMinor: { color: "#8AA6CE", alpha: 0.8, width: 1.2 },
+  label: { color: "#4A5A73", alpha: 1 },
+  // Idle node sits AT the contrast floor (~3.3:1 vs panel) on purpose - see
+  // docs/DESIGN.md section 8 - so it never outshouts an active/event marker.
+  cameraIdle: { color: "#5A7FBC", alpha: 1, width: 2.5 },
+  cameraActive: { color: "#1D5BD8", alpha: 1, width: 4 },
+  // Hover/focus highlight (Hero's hotspot layer drives this via the
+  // controlled `spotlightId` prop); structurally distinct from cameraActive
+  // - a double unfilled outline ring, never a filled node.
+  spotlight: { color: "#1D5BD8", alpha: 1, width: 1.5 },
+  dot: { color: "#123C8C", alpha: 0.3 },
+  detect: { color: "#1D5BD8", alpha: 1, width: 2 },
+  confirmed: { color: "#B93535", alpha: 1, width: 2 },
+} as const satisfies Record<string, Paint>;
+
+// White casing separates event/camera markers from the same-hue road
+// network beneath them (cartography convention), rather than dark-theme glow.
+const CASING = "#FFFFFF";
+// +0.25px stroke-width allowance at DPR 1, where thin AA'd strokes on a
+// light ground read faint (docs/DESIGN.md risk note); full weight at DPR>=2.
+const dprWidth = (width: number, dpr: number) => (dpr <= 1 ? width + 0.25 : width);
 
 const GRID_SPACING = 26;
 const LABEL_MIN_WIDTH = 480;
@@ -85,12 +118,11 @@ function dotLonLat(dot: TrafficDot, tSec: number): readonly [number, number] {
   return [lonA + (lonB - lonA) * f, latA + (latB - latA) * f];
 }
 
-const GLOW_PASSES: Record<string, [width: number, alpha: number][]> = {
-  interstate: [[6, 0.08], [3, 0.16], [1.6, 0.7]],
-  other: [[3, 0.1], [1, 0.45]],
-};
+// Interstate roads carry a soft, subtle depth understroke (NOT dark-theme
+// glow) beneath the crisp top stroke; minor roads are a single quiet stroke.
+const ROAD_UNDERSTROKE = { width: 5, alpha: 0.12 };
 
-function buildBackground(w: number, h: number, dpr: number, fontFamily: string) {
+function buildBackground(w: number, h: number, dpr: number, fontFamily: string, background: "transparent" | "panel") {
   const bg = document.createElement("canvas");
   bg.width = Math.max(1, Math.round(w * dpr));
   bg.height = Math.max(1, Math.round(h * dpr));
@@ -98,8 +130,15 @@ function buildBackground(w: number, h: number, dpr: number, fontFamily: string) 
   if (!ctx) return bg;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-  ctx.fillStyle = STEEL;
-  ctx.globalAlpha = 0.05;
+  if (background === "panel") {
+    ctx.fillStyle = MAP_COLORS.panel.color;
+    ctx.globalAlpha = MAP_COLORS.panel.alpha;
+    ctx.fillRect(0, 0, w, h);
+    ctx.globalAlpha = 1;
+  }
+
+  ctx.fillStyle = MAP_COLORS.grid.color;
+  ctx.globalAlpha = MAP_COLORS.grid.alpha;
   for (let gx = GRID_SPACING / 2; gx < w; gx += GRID_SPACING) {
     for (let gy = GRID_SPACING / 2; gy < h; gy += GRID_SPACING) {
       ctx.fillRect(gx, gy, 1, 1);
@@ -107,8 +146,8 @@ function buildBackground(w: number, h: number, dpr: number, fontFamily: string) 
   }
   ctx.globalAlpha = 1;
 
-  ctx.fillStyle = STEEL;
-  ctx.globalAlpha = 0.08;
+  ctx.fillStyle = MAP_COLORS.water.color;
+  ctx.globalAlpha = MAP_COLORS.water.alpha;
   for (const ring of WATER.rings) {
     ctx.beginPath();
     ring.forEach((p, i) => {
@@ -120,14 +159,14 @@ function buildBackground(w: number, h: number, dpr: number, fontFamily: string) 
   }
   ctx.globalAlpha = 1;
 
-  ctx.strokeStyle = STEEL;
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
   for (const clsGroup of ["other", "interstate"] as const) {
     const segments = ROAD_SEGMENTS.filter((s) =>
       clsGroup === "interstate" ? s.cls === "interstate" : s.cls !== "interstate",
     );
-    for (const [width, alpha] of GLOW_PASSES[clsGroup]) {
+    const paint = clsGroup === "interstate" ? MAP_COLORS.roadInterstate : MAP_COLORS.roadMinor;
+    const tracePath = () => {
       ctx.beginPath();
       for (const seg of segments) {
         seg.points.forEach((p, i) => {
@@ -135,17 +174,25 @@ function buildBackground(w: number, h: number, dpr: number, fontFamily: string) 
           i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
         });
       }
-      ctx.lineWidth = width;
-      ctx.globalAlpha = alpha;
+    };
+    ctx.strokeStyle = paint.color;
+    if (clsGroup === "interstate") {
+      tracePath();
+      ctx.lineWidth = dprWidth(ROAD_UNDERSTROKE.width, dpr);
+      ctx.globalAlpha = ROAD_UNDERSTROKE.alpha;
       ctx.stroke();
     }
+    tracePath();
+    ctx.lineWidth = dprWidth(paint.width ?? 1, dpr);
+    ctx.globalAlpha = paint.alpha;
+    ctx.stroke();
   }
   ctx.globalAlpha = 1;
 
   if (w >= LABEL_MIN_WIDTH) {
     ctx.font = `10px ${fontFamily}`;
-    ctx.fillStyle = FOG_DIM;
-    ctx.globalAlpha = 0.8;
+    ctx.fillStyle = MAP_COLORS.label.color;
+    ctx.globalAlpha = MAP_COLORS.label.alpha;
     for (const label of LABELS) {
       const [x, y] = project(label.lonlat, w, h);
       ctx.fillText(label.text, x + 4, y - 4);
@@ -155,6 +202,62 @@ function buildBackground(w: number, h: number, dpr: number, fontFamily: string) 
   return bg;
 }
 
+// Fills a circular node cased in a ring of `casingColor` (drawn first, so it
+// reads as a thin outline once the node is painted on top) - the light-theme
+// substitute for dark-theme node glow, keeping markers legible over the
+// same-hue road strokes beneath them.
+function drawCasedNode(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  radius: number,
+  casingWidth: number,
+  color: string,
+  alpha: number,
+) {
+  ctx.beginPath();
+  ctx.arc(x, y, radius + casingWidth, 0, Math.PI * 2);
+  ctx.fillStyle = CASING;
+  ctx.globalAlpha = 1;
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.globalAlpha = alpha;
+  ctx.fill();
+  ctx.globalAlpha = 1;
+}
+
+// Strokes a circular ring cased in white (a wider white understroke drawn
+// first, then the color stroke on top) - the cartography-style casing called
+// for detect/confirmed rings and corner brackets.
+function strokeCasedCircle(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  radius: number,
+  width: number,
+  color: string,
+  alpha: number,
+  dpr: number,
+) {
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.strokeStyle = CASING;
+  ctx.lineWidth = dprWidth(width + 3, dpr);
+  ctx.globalAlpha = 1;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = dprWidth(width, dpr);
+  ctx.globalAlpha = alpha;
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+}
+
+const STATIC_T = 12000;
+
 function drawFrame(
   ctx: CanvasRenderingContext2D,
   bg: HTMLCanvasElement,
@@ -162,6 +265,8 @@ function drawFrame(
   h: number,
   tMs: number,
   paused: boolean,
+  spotlightId: string | null | undefined,
+  dpr: number,
 ) {
   ctx.clearRect(0, 0, w, h);
   ctx.drawImage(bg, 0, 0, w, h);
@@ -170,20 +275,43 @@ function drawFrame(
   for (const cam of CAMERAS) {
     const [x, y] = project(cam.lonlat, w, h);
     const active = s.event?.camId === cam.id;
-    // idle cameras breathe faintly, offset by position so they never sync;
-    // paused mode uses a fixed mid-breath opacity
-    const breathe = paused ? 0.45 : 0.35 + 0.2 * Math.sin(tMs / 900 + x * 0.13);
-    ctx.beginPath();
-    ctx.arc(x, y, active ? 4 : 2.5, 0, Math.PI * 2);
-    ctx.fillStyle = active ? SIGNAL : STEEL;
-    ctx.globalAlpha = active ? 1 : breathe;
-    ctx.fill();
-    ctx.globalAlpha = 1;
+
+    if (active) {
+      drawCasedNode(ctx, x, y, MAP_COLORS.cameraActive.width!, 2, MAP_COLORS.cameraActive.color, MAP_COLORS.cameraActive.alpha);
+    } else {
+      // Breathing moves to a surrounding halo (radius + alpha animate) -
+      // the node itself stays solid opacity, never faded.
+      const phase = 0.5 + 0.5 * Math.sin(tMs / 900 + x * 0.13);
+      const haloRadius = 5 + 3 * phase;
+      const haloAlpha = 0.1 + 0.1 * phase;
+      ctx.beginPath();
+      ctx.arc(x, y, haloRadius, 0, Math.PI * 2);
+      ctx.fillStyle = MAP_COLORS.cameraIdle.color;
+      ctx.globalAlpha = haloAlpha;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      drawCasedNode(ctx, x, y, MAP_COLORS.cameraIdle.width!, 1, MAP_COLORS.cameraIdle.color, MAP_COLORS.cameraIdle.alpha);
+    }
+
+    if (spotlightId && cam.id === spotlightId) {
+      // Double unfilled outline ring - structurally distinct from the
+      // filled cameraActive node, so both can render together.
+      const base = active ? MAP_COLORS.cameraActive.width! : MAP_COLORS.cameraIdle.width!;
+      for (const extra of [5, 9]) {
+        ctx.beginPath();
+        ctx.arc(x, y, base + extra, 0, Math.PI * 2);
+        ctx.strokeStyle = MAP_COLORS.spotlight.color;
+        ctx.lineWidth = dprWidth(MAP_COLORS.spotlight.width!, dpr);
+        ctx.globalAlpha = MAP_COLORS.spotlight.alpha;
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    }
   }
 
   if (!paused) {
-    ctx.fillStyle = STEEL;
-    ctx.globalAlpha = 0.35;
+    ctx.fillStyle = MAP_COLORS.dot.color;
+    ctx.globalAlpha = MAP_COLORS.dot.alpha;
     const tSec = tMs / 1000;
     for (const dot of TRAFFIC_DOTS) {
       const [x, y] = project(dotLonLat(dot, tSec), w, h);
@@ -196,20 +324,14 @@ function drawFrame(
 
   if (s.event && s.phase !== "idle") {
     const [x, y] = project(s.event.lonlat, w, h);
-    const color = s.phase === "confirmed" ? ALERT : SIGNAL;
-    // expanding radar ring
+    const paint = s.phase === "confirmed" ? MAP_COLORS.confirmed : MAP_COLORS.detect;
+    // expanding radar ring, cased in white so it separates from the roads
     const ring = ((tMs % 1400) / 1400) * 26;
-    ctx.beginPath();
-    ctx.arc(x, y, 6 + ring, 0, Math.PI * 2);
-    ctx.strokeStyle = color;
-    ctx.globalAlpha = 1 - ring / 26;
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-    ctx.globalAlpha = 1;
-    // bounding-box corner brackets around the event
+    strokeCasedCircle(ctx, x, y, 6 + ring, paint.width!, paint.color, 1 - ring / 26, dpr);
+    // bounding-box corner brackets around the event, also cased in white
     const r = 12, l = 5;
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = CASING;
+    ctx.lineWidth = dprWidth(paint.width! + 3, dpr);
     for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const) {
       ctx.beginPath();
       ctx.moveTo(x + sx * r, y + sy * r - sy * l);
@@ -217,21 +339,36 @@ function drawFrame(
       ctx.lineTo(x + sx * r - sx * l, y + sy * r);
       ctx.stroke();
     }
-    ctx.beginPath();
-    ctx.arc(x, y, 3.5, 0, Math.PI * 2);
-    ctx.fillStyle = color;
-    ctx.fill();
+    ctx.strokeStyle = paint.color;
+    ctx.lineWidth = dprWidth(paint.width!, dpr);
+    for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const) {
+      ctx.beginPath();
+      ctx.moveTo(x + sx * r, y + sy * r - sy * l);
+      ctx.lineTo(x + sx * r, y + sy * r);
+      ctx.lineTo(x + sx * r - sx * l, y + sy * r);
+      ctx.stroke();
+    }
+    drawCasedNode(ctx, x, y, 3.5, 1.5, paint.color, 1);
   }
 }
 
 export default function MapCanvas({
-  epochRef, paused, className,
+  epochRef, paused, className, background = "panel", spotlightId,
 }: {
   epochRef: React.RefObject<number | null>;
   paused: boolean;
   className?: string;
+  background?: "transparent" | "panel";
+  spotlightId?: string | null;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const bgRef = useRef<HTMLCanvasElement | null>(null);
+  const dprRef = useRef(1);
+  // Latest-value ref so the running RAF loop (created once per [paused,
+  // epochRef, background] effect run) always renders the current spotlight
+  // without needing to restart the loop on every hover/focus change.
+  const spotlightRef = useRef(spotlightId);
+  spotlightRef.current = spotlightId;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -239,26 +376,25 @@ export default function MapCanvas({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     let disposed = false;
-    let bg: HTMLCanvasElement | null = null;
 
     const fontFamily = () =>
       getComputedStyle(document.body).fontFamily || "monospace";
 
-    const staticT = 12000;
     const currentT = () =>
       paused
-        ? staticT
+        ? STATIC_T
         : performance.now() - (epochRef.current ?? performance.now());
 
     const rebuild = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      dprRef.current = dpr;
       const { clientWidth: w, clientHeight: h } = canvas;
       canvas.width = w * dpr;
       canvas.height = h * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      bg = buildBackground(w, h, dpr, fontFamily());
+      bgRef.current = buildBackground(w, h, dpr, fontFamily(), background);
       // Redraw after resize to prevent canvas clear from blanking content
-      drawFrame(ctx, bg, w, h, currentT(), paused);
+      drawFrame(ctx, bgRef.current, w, h, currentT(), paused, spotlightRef.current, dpr);
     };
     rebuild();
     const ro = new ResizeObserver(rebuild);
@@ -276,14 +412,28 @@ export default function MapCanvas({
     let raf = 0;
     const tick = (now: number) => {
       if (epochRef.current === null) epochRef.current = now;
-      if (bg) {
-        drawFrame(ctx, bg, canvas.clientWidth, canvas.clientHeight, now - epochRef.current, false);
+      if (bgRef.current) {
+        drawFrame(
+          ctx, bgRef.current, canvas.clientWidth, canvas.clientHeight,
+          now - epochRef.current, false, spotlightRef.current, dprRef.current,
+        );
       }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => { disposed = true; cancelAnimationFrame(raf); ro.disconnect(); };
-  }, [paused, epochRef]);
+  }, [paused, epochRef, background]);
+
+  // Controlled spotlight: while paused there is no running RAF loop, so a
+  // spotlightId change needs its own one-shot redraw of the static frame.
+  useEffect(() => {
+    if (!paused) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    const bg = bgRef.current;
+    if (!canvas || !ctx || !bg) return;
+    drawFrame(ctx, bg, canvas.clientWidth, canvas.clientHeight, STATIC_T, true, spotlightId, dprRef.current);
+  }, [spotlightId, paused]);
 
   return <canvas ref={canvasRef} className={className} aria-hidden="true" />;
 }
