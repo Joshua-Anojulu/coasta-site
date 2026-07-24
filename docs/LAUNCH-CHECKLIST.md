@@ -16,9 +16,16 @@ All blocking items must be resolved before a public production deployment.
 
 ## Marketing assets
 
-- [ ] Replace the placeholder `cam-frame.jpg` with the approved camera image.
-- [ ] Create and verify the production `og:image`.
+- [x] Replace the placeholder `cam-frame.jpg` with the approved camera image.
+      Resolved 2026-07-24: Unsplash photo `1700706258027-8d46bb5acef4` by Aaron M
+      ("a view of a highway intersection from the top of a building" - the High
+      Five Interchange, US-75 at I-635, Dallas), Unsplash License (free for
+      commercial use, no attribution required), fetched at 1600x900 crop.
+- [x] Create and verify the production `og:image` (brand logo at
+      `/brand/coasta-logo.jpg`, wired in layout metadata).
 - [ ] Check social previews on the intended launch domains.
+- [ ] Re-run Lighthouse on production hosting (local medians pass: LCP 1.82s,
+      CLS 0.0000; local outliers attributed to machine contention).
 
 ## OpenStreetMap licensing
 
