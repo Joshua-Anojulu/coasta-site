@@ -17,7 +17,9 @@ const NAV_HEIGHT = 64;
 // mounts/unmounts with replay phase, so a measured rect would read 0x0 for
 // much of the loop) - mirrors AlertCard's right-5/top-24/w-72 placement
 // with a conservative max-height estimate for its tallest content state.
-const ALERT_CARD_RESERVED = { top: 96, right: 20, width: 288, height: 200 };
+// Widened to cover the card at BOTH breakpoints (right-5 mobile, md:right-10):
+// right edge inset 20px, width spans the extra 20px of the md offset.
+const ALERT_CARD_RESERVED = { top: 96, right: 20, width: 308, height: 200 };
 const HOTSPOT_SIZE = 44;
 const CARD_SIZE: Size = { width: 224, height: 108 };
 
@@ -237,10 +239,7 @@ export default function Hero() {
           className="pointer-events-none absolute w-56 rounded-lg border border-border bg-ground p-3 shadow-elevated"
           style={{ left: cardPos.x, top: cardPos.y }}
         >
-          <div className="flex items-center justify-between font-mono text-[10px] text-ink-2">
-            <span>{spotlightCamera.id}</span>
-            <span className="border border-border px-1.5 py-0.5">SIM</span>
-          </div>
+          <div className="font-mono text-[10px] text-ink-2">{spotlightCamera.id}</div>
           <div className="mt-1.5 text-xs text-ink">{spotlightRoute ?? "DFW metroplex"}</div>
           <div className="mt-1 text-[11px] text-ink-2">
             Simulated feed <span className="border border-border px-1 py-0.5 font-mono text-[9px]">SIM</span>

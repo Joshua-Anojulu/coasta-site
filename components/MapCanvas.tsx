@@ -245,7 +245,9 @@ function strokeCasedCircle(
   ctx.arc(x, y, radius, 0, Math.PI * 2);
   ctx.strokeStyle = CASING;
   ctx.lineWidth = dprWidth(width + 3, dpr);
-  ctx.globalAlpha = 1;
+  // Casing fades WITH the color stroke - an always-opaque white ring would
+  // sweep the roads at full strength late in each expansion cycle.
+  ctx.globalAlpha = alpha;
   ctx.stroke();
   ctx.beginPath();
   ctx.arc(x, y, radius, 0, Math.PI * 2);

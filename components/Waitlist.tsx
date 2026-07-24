@@ -50,12 +50,12 @@ export default function Waitlist() {
           <p className="text-xs font-medium text-signal">Early access</p>
         </Reveal>
         <Reveal index={1}>
-          <h2 className="font-display mt-6 text-[clamp(2.4rem,5vw,4.2rem)] font-bold leading-tight tracking-[-0.01em]">
+          <h2 className="font-display mt-6 text-[clamp(1.75rem,3.2vw,2.75rem)] font-semibold leading-tight tracking-[-0.01em]">
             Drive DFW with eyes everywhere
           </h2>
         </Reveal>
         {status === "done" ? (
-          <div className="mt-10 rounded-lg border border-border bg-ground p-6 shadow-card">
+          <div className="mt-10 rounded-lg border border-border bg-ground p-6 shadow-elevated">
             <span className="text-signal">You are on the list.</span>
             <p className="mt-2 text-sm text-ink-2">We will email you when Coasta goes live in DFW.</p>
           </div>
