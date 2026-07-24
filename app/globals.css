@@ -41,6 +41,12 @@ body {
   color: var(--color-ink);
 }
 
+/* Smooth anchor scrolling for Nav/Footer in-page links (docs/DESIGN.md
+   motion rules): exempted under prefers-reduced-motion below. */
+html {
+  scroll-behavior: smooth;
+}
+
 .font-display {
   font-family: var(--font-display);
   letter-spacing: -0.01em;
@@ -98,6 +104,7 @@ body {
   animation: marquee 36s linear infinite;
 }
 @media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
   .marquee-track { animation: none; }
   .blindspot-scan { animation: none; }
   .tile-pulse { animation: none; box-shadow: 0 0 0 2px rgba(29, 91, 216, 0.9); }

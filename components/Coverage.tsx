@@ -15,7 +15,10 @@ const QUEUE = [
 export default function Coverage() {
   const epochRef = useRef<number | null>(null);
   return (
-    <section className="mx-auto grid max-w-6xl gap-12 px-5 py-32 md:grid-cols-[1.4fr_1fr] md:px-10 md:py-44">
+    <section
+      id="coverage"
+      className="mx-auto grid max-w-6xl scroll-mt-24 gap-12 px-5 py-32 md:grid-cols-[1.4fr_1fr] md:px-10 md:py-44"
+    >
       <Reveal className="relative min-h-72 overflow-hidden rounded-xl border border-border bg-panel">
         <MapCanvas epochRef={epochRef} paused className="absolute inset-0 h-full w-full" />
         <span className="absolute left-4 top-4 text-[10px] text-ink-2">DFW metroplex</span>

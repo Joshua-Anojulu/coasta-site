@@ -4,6 +4,26 @@ export default function Nav() {
       <a href="#" className="font-display text-lg uppercase tracking-tight">
         C<span className="text-signal">O</span>ASTA
       </a>
+      <div className="hidden items-center gap-8 md:flex">
+        <a
+          href="#how-it-works"
+          className="text-sm text-ink-2 transition-colors duration-300 [transition-timing-function:var(--ease-signal)] hover:text-ink"
+        >
+          How it works
+        </a>
+        <a
+          href="#coverage"
+          className="text-sm text-ink-2 transition-colors duration-300 [transition-timing-function:var(--ease-signal)] hover:text-ink"
+        >
+          Coverage
+        </a>
+        <a
+          href="#faq"
+          className="text-sm text-ink-2 transition-colors duration-300 [transition-timing-function:var(--ease-signal)] hover:text-ink"
+        >
+          FAQ
+        </a>
+      </div>
       <div className="flex items-center gap-6">
         <span className="hidden font-mono text-xs text-ink-2 sm:block">
           network: DFW <span className="text-signal">/ demo</span>

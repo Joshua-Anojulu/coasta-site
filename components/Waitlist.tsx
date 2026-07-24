@@ -42,7 +42,7 @@ export default function Waitlist() {
   return (
     <section
       id="waitlist"
-      className="px-5 py-32 md:px-10 md:py-44"
+      className="scroll-mt-24 px-5 py-32 md:px-10 md:py-44"
       style={{ background: "var(--gradient-waitlist-band)" }}
     >
       <div className="mx-auto max-w-3xl">
@@ -81,6 +81,9 @@ export default function Waitlist() {
               </button>
             </div>
             {status === "error" && <p className="mt-3 text-sm text-error" role="alert">{message}</p>}
+            <p className="mt-4 text-xs text-ink-2">
+              No spam. One email when Coasta reaches your area, and nothing else.
+            </p>
           </form>
         )}
       </div>
