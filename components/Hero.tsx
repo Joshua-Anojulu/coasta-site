@@ -184,7 +184,7 @@ export default function Hero() {
       </div>
       <div ref={headlineRef} className="absolute bottom-12 left-5 max-w-2xl md:left-10">
         <h1 className="font-display text-[clamp(2.4rem,5vw,4.2rem)] font-bold leading-[1.05] tracking-[-0.01em]">
-          Every camera. Now a sensor.
+          Every camera.<br />Now a sensor.
         </h1>
         <p className="mt-5 max-w-md text-sm text-ink-2">
           Coasta reads DFW traffic cameras with AI and warns you about police, crashes, and hazards before you reach them.
