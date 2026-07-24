@@ -1,8 +1,10 @@
 export default function Nav() {
   return (
     <nav className="fixed inset-x-0 top-0 z-40 flex h-16 items-center justify-between border-b border-border bg-ground/80 px-5 backdrop-blur-md md:px-10">
-      <a href="#" className="font-display text-lg uppercase tracking-tight">
-        C<span className="text-signal">O</span>ASTA
+      <a href="#" className="flex items-center gap-2">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/brand/coasta-mark.png" alt="" width={26} height={26} />
+        <span className="font-display text-lg font-semibold tracking-tight text-ink">coasta</span>
       </a>
       <div className="hidden items-center gap-8 md:flex">
         <a

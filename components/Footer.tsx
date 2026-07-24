@@ -9,8 +9,10 @@ export default function Footer() {
           className="grid gap-10 sm:grid-cols-2 md:grid-cols-4"
         >
           <div>
-            <span className="font-display text-sm uppercase text-ink">
-              C<span className="text-signal">O</span>ASTA
+            <span className="flex items-center gap-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/brand/coasta-mark.png" alt="" width={22} height={22} />
+              <span className="font-display text-sm font-semibold text-ink">coasta</span>
             </span>
             <p className="mt-3 max-w-[22ch] text-sm leading-relaxed text-ink-2">
               AI that reads DFW traffic cameras so you are never surprised on the road.

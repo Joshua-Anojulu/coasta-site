@@ -25,6 +25,7 @@ export const metadata: Metadata = {
     description:
       "AI reads DFW traffic cameras and warns you about police, crashes, and hazards. Join the waitlist.",
     type: "website",
+    images: [{ url: "/brand/coasta-logo.jpg", width: 1170, height: 1135 }],
   },
 };
 
