@@ -40,12 +40,12 @@ export default function Pipeline() {
 
             <motion.div
               style={reduced ? { opacity: 1 } : { opacity: boxOpacity }}
-              className="absolute left-[18%] top-[42%] h-[26%] w-[22%] border-2 border-signal
+              className="absolute left-[61.5%] top-[67.5%] h-[7.5%] w-[5%] border-2 border-signal
                 [clip-path:polygon(0_0,30%_0,30%_12%,70%_12%,70%_0,100%_0,100%_30%,88%_30%,88%_70%,100%_70%,100%_100%,70%_100%,70%_88%,30%_88%,30%_100%,0_100%,0_70%,12%_70%,12%_30%,0_30%)]"
             />
             <motion.div
               style={reduced ? { opacity: 1 } : { opacity: labelOpacity }}
-              className="absolute left-[18%] top-[32%] bg-ground/90 px-2 py-1 font-mono text-[11px] text-signal"
+              className="absolute left-[61.5%] top-[58.5%] bg-ground/90 px-2 py-1 font-mono text-[11px] text-signal"
             >
               Police vehicle <motion.span className="tabular-nums">{reduced ? "96%" : confText}</motion.span>
               <span className="ml-1.5 border border-border px-1 py-0.5 align-middle text-[9px] text-ink-2">SIM</span>
