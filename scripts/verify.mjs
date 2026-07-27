@@ -16,9 +16,15 @@ const env = { ...process.env, COASTA_DIST_DIR: DIST }
 // shell: true is required on Windows. npx and the local .bin entries are .cmd
 // shims, and since Node 20 spawn refuses to execute those without a shell,
 // failing instantly with no output at all.
+// The a11y suite runs here rather than standalone because Playwright's
+// webServer starts `next start`, which reads distDir from next.config. Run
+// outside verify it looks in .next and fails with "Could not find a production
+// build". Inside verify it inherits COASTA_DIST_DIR and finds the build we just
+// made, so the whole proof uses one consistent output directory.
 const steps = [
   ["next build", "npx next build"],
   ["vitest", "npx vitest run"],
+  ["playwright + axe", "npx playwright test"],
 ]
 
 for (const [label, command] of steps) {
