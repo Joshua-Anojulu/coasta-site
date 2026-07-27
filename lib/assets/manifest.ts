@@ -49,6 +49,16 @@ export class AssetSlotContractError extends Error {
   }
 }
 
+// The credit's leading segment is the real road and city. Chapter chrome shows it
+// in place of an invented camera id, so the frame never implies a capture that did
+// not happen: these are licensed photographs, not stills pulled off a live feed.
+export function slotLocation(slot: AssetSlot): string | null {
+  if (slot.status !== "filled") {
+    return null
+  }
+  return slot.credit.split(" · ")[0] ?? null
+}
+
 export function getAssetSlot(slotId: string): AssetSlot {
   const slot = ASSET_SLOTS.find((candidate) => candidate.id === slotId)
   if (slot === undefined) {

@@ -1,11 +1,11 @@
-import { getAssetSlot } from "@/lib/assets/manifest"
+import { getAssetSlot, slotLocation } from "@/lib/assets/manifest"
 import { AmbientSection } from "../AmbientSection"
 import { AssetSlotFrame } from "../AssetSlotFrame"
-import { LiveTimecode } from "../LiveTimecode"
 import { PrimaryAction } from "../PrimaryAction"
 
 export function ApproachChapter() {
   const heroSlot = getAssetSlot("ch1-hero-01")
+  const heroLocation = slotLocation(heroSlot)
 
   return (
     <section className="chapter chapter-dark approach" id="approach">
@@ -16,9 +16,11 @@ export function ApproachChapter() {
           slot={heroSlot}
         />
         <div aria-hidden="true" className="monitor-scanlines" />
+        {/* States where the frame was taken, not a camera id and not a running
+            clock. Both of those asserted a live capture that never happened. */}
         <div className="approach__meta">
-          <span>CAM / APPROACH</span>
-          <LiveTimecode />
+          <span>{heroLocation ?? "DFW metroplex"}</span>
+          <span className="timecode">Licensed photograph</span>
         </div>
         <div className="approach__copy">
           <h1>

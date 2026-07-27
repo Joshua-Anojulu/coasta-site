@@ -8,10 +8,10 @@
       "height": 1080,
       "byteBudget": 256000,
       "loading": "eager",
-      "status": "unfilled",
-      "avifPath": null,
-      "webpPath": null,
-      "credit": null
+      "status": "filled",
+      "avifPath": "/frames/ch1-hero-01.avif",
+      "webpPath": "/frames/ch1-hero-01.webp",
+      "credit": "I-30 at TX161, Grand Prairie · Photograph by formulanone · CC BY-SA 2.0 · Wikimedia Commons"
     },
     {
       "id": "ch2-wall-dawn-01",
@@ -21,10 +21,10 @@
       "height": 540,
       "byteBudget": 102400,
       "loading": "lazy",
-      "status": "unfilled",
-      "avifPath": null,
-      "webpPath": null,
-      "credit": null
+      "status": "filled",
+      "avifPath": "/frames/ch2-wall-dawn-01.avif",
+      "webpPath": "/frames/ch2-wall-dawn-01.webp",
+      "credit": "US-175 at I-20 and I-635, Dallas · Photograph by formulanone · CC BY-SA 2.0 · Wikimedia Commons"
     },
     {
       "id": "ch2-wall-day-02",
@@ -34,10 +34,10 @@
       "height": 540,
       "byteBudget": 102400,
       "loading": "lazy",
-      "status": "unfilled",
-      "avifPath": null,
-      "webpPath": null,
-      "credit": null
+      "status": "filled",
+      "avifPath": "/frames/ch2-wall-day-02.avif",
+      "webpPath": "/frames/ch2-wall-day-02.webp",
+      "credit": "I-635 at the Galleria, Dallas · Photograph by Robertb-dc · Public domain · Wikimedia Commons"
     },
     {
       "id": "ch2-wall-overpass-03",
@@ -47,10 +47,10 @@
       "height": 540,
       "byteBudget": 102400,
       "loading": "lazy",
-      "status": "unfilled",
-      "avifPath": null,
-      "webpPath": null,
-      "credit": null
+      "status": "filled",
+      "avifPath": "/frames/ch2-wall-overpass-03.avif",
+      "webpPath": "/frames/ch2-wall-overpass-03.webp",
+      "credit": "I-635 at I-30, Mesquite · Photograph by formulanone · CC BY-SA 2.0 · Wikimedia Commons"
     },
     {
       "id": "ch2-wall-rain-04",
@@ -60,10 +60,10 @@
       "height": 540,
       "byteBudget": 102400,
       "loading": "lazy",
-      "status": "unfilled",
-      "avifPath": null,
-      "webpPath": null,
-      "credit": null
+      "status": "filled",
+      "avifPath": "/frames/ch2-wall-rain-04.avif",
+      "webpPath": "/frames/ch2-wall-rain-04.webp",
+      "credit": "President George Bush Turnpike · Photograph by Gbauer8946 · CC BY-SA 3.0 · Wikimedia Commons"
     },
     {
       "id": "ch2-wall-night-05",
@@ -73,10 +73,10 @@
       "height": 540,
       "byteBudget": 102400,
       "loading": "lazy",
-      "status": "unfilled",
-      "avifPath": null,
-      "webpPath": null,
-      "credit": null
+      "status": "filled",
+      "avifPath": "/frames/ch2-wall-night-05.avif",
+      "webpPath": "/frames/ch2-wall-night-05.webp",
+      "credit": "Fort Worth at dusk · Photograph by Andreas Praefcke · CC BY 3.0 · Wikimedia Commons"
     },
     {
       "id": "ch3-read-01",
@@ -86,10 +86,10 @@
       "height": 720,
       "byteBudget": 204800,
       "loading": "lazy",
-      "status": "unfilled",
-      "avifPath": null,
-      "webpPath": null,
-      "credit": null
+      "status": "filled",
+      "avifPath": "/frames/ch3-read-01.avif",
+      "webpPath": "/frames/ch3-read-01.webp",
+      "credit": "High Five Interchange, Dallas · Photograph by Danazar · CC BY-SA 3.0 · Wikimedia Commons"
     },
     {
       "id": "ch4-alert-01",
@@ -99,10 +99,10 @@
       "height": 720,
       "byteBudget": 204800,
       "loading": "lazy",
-      "status": "unfilled",
-      "avifPath": null,
-      "webpPath": null,
-      "credit": null
+      "status": "filled",
+      "avifPath": "/frames/ch4-alert-01.avif",
+      "webpPath": "/frames/ch4-alert-01.webp",
+      "credit": "I-30 from Reunion Tower, Dallas · Photograph by Michael Barera · CC BY-SA 4.0 · Wikimedia Commons"
     },
     {
       "id": "ch5-resolve-west-01",
@@ -112,10 +112,10 @@
       "height": 540,
       "byteBudget": 102400,
       "loading": "lazy",
-      "status": "unfilled",
-      "avifPath": null,
-      "webpPath": null,
-      "credit": null
+      "status": "filled",
+      "avifPath": "/frames/ch5-resolve-west-01.avif",
+      "webpPath": "/frames/ch5-resolve-west-01.webp",
+      "credit": "Las Colinas, Irving · Photograph by La Citta Vita · CC BY-SA 2.0 · Wikimedia Commons"
     },
     {
       "id": "ch5-resolve-east-02",
@@ -125,10 +125,10 @@
       "height": 540,
       "byteBudget": 102400,
       "loading": "lazy",
-      "status": "unfilled",
-      "avifPath": null,
-      "webpPath": null,
-      "credit": null
+      "status": "filled",
+      "avifPath": "/frames/ch5-resolve-east-02.avif",
+      "webpPath": "/frames/ch5-resolve-east-02.webp",
+      "credit": "I-30 from Reunion Tower, Dallas · Photograph by Michael Barera · CC BY-SA 4.0 · Wikimedia Commons"
     }
   ]
 }
