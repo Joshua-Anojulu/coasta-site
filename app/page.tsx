@@ -1,32 +1,34 @@
-import Hero from "@/components/Hero";
-import BlindSpot from "@/components/BlindSpot";
-import HowItWorks from "@/components/HowItWorks";
-import Pipeline from "@/components/Pipeline";
-import PhonePreview from "@/components/PhonePreview";
-import Catches from "@/components/Catches";
-import Coverage from "@/components/Coverage";
-import TrustBand from "@/components/TrustBand";
-import Faq from "@/components/Faq";
-import Waitlist from "@/components/Waitlist";
-import Footer from "@/components/Footer";
+import { AlertChapter } from "@/components/chapters/AlertChapter"
+import { ApproachChapter } from "@/components/chapters/ApproachChapter"
+import { CoverageChapter } from "@/components/chapters/CoverageChapter"
+import { GroundChapter } from "@/components/chapters/GroundChapter"
+import { ReadChapter } from "@/components/chapters/ReadChapter"
+import { WallChapter } from "@/components/chapters/WallChapter"
+import { ScanWipe } from "@/components/ScanWipe"
+import { SiteFooter } from "@/components/SiteFooter"
+import { SiteNav } from "@/components/SiteNav"
 
-export default function Page() {
+export default function HomePage() {
   return (
-    <main>
-      <Hero />
-      <div className="lane-divider" />
-      <BlindSpot />
-      <HowItWorks />
-      <Pipeline />
-      <div className="lane-divider" />
-      <PhonePreview />
-      <Catches />
-      <div className="lane-divider" />
-      <Coverage />
-      <TrustBand />
-      <Faq />
-      <Waitlist />
-      <Footer />
-    </main>
-  );
+    <>
+      <a className="skip-link" href="#main-content">
+        Skip to main content
+      </a>
+      <SiteNav />
+      <main id="main-content">
+        <ApproachChapter />
+        <ScanWipe />
+        <WallChapter />
+        <ScanWipe />
+        <ReadChapter />
+        <ScanWipe />
+        <AlertChapter />
+        <ScanWipe />
+        <CoverageChapter />
+        <ScanWipe />
+        <GroundChapter />
+      </main>
+      <SiteFooter />
+    </>
+  )
 }

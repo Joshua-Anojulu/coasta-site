@@ -1,58 +1,47 @@
-import Reveal from "./Reveal";
+export const PRIVACY_ANSWER_AWAITING_SIGN_OFF =
+  "Privacy and data-retention details will be published after Coasta's retention policy is signed."
 
 const ITEMS = [
   {
-    q: "When does Coasta launch?",
-    a: "Coasta launches in DFW first. Join the waitlist and we will email you the moment your area goes live.",
+    answer:
+      "Coasta launches in DFW first. Join the waitlist and we will email you the moment your area goes live.",
+    question: "When does Coasta launch?",
   },
   {
-    q: "How much does it cost?",
-    a: "Early access is free for waitlist members. Pricing for later plans will be announced before launch.",
+    answer:
+      "Early access is free for waitlist members. Pricing for later plans will be announced before launch.",
+    question: "How much does it cost?",
   },
   {
-    q: "Where do the alerts come from?",
-    a: "From public traffic cameras read by our detection models. Every alert is camera-verified before it reaches you.",
+    answer:
+      "From public traffic cameras read by our detection models. Every alert is camera-verified before it reaches you.",
+    question: "Where do the alerts come from?",
   },
   {
-    q: "Is my privacy protected?",
-    a: "Yes. Coasta reads roadways, not people. We do not store faces, plates, or personal location history.",
+    answer: PRIVACY_ANSWER_AWAITING_SIGN_OFF,
+    question: "Is my privacy protected?",
   },
   {
-    q: "Which cities are next?",
-    a: "The DFW metroplex is first. Expansion cities will be chosen with input from the waitlist.",
+    answer:
+      "The DFW metroplex is first. Expansion cities will be chosen with input from the waitlist.",
+    question: "Which cities are next?",
   },
-];
+] as const
 
-export default function Faq() {
+export function Faq() {
   return (
-    <section id="faq" className="scroll-mt-24 px-5 py-32 md:px-10 md:py-44">
-      <div className="mx-auto max-w-6xl">
-        <Reveal>
-          <p className="text-xs font-medium text-signal">Questions</p>
-        </Reveal>
-        <Reveal index={1}>
-          <h2 className="font-display mt-6 text-[clamp(1.75rem,3.2vw,2.75rem)] font-semibold tracking-[-0.01em]">
-            Frequently asked
-          </h2>
-        </Reveal>
-        <div className="mt-12 max-w-3xl">
-          {ITEMS.map((item, i) => (
-            <Reveal as="div" index={i + 2} key={item.q}>
-              <details className="group border-b border-border py-6">
-                <summary
-                  className="flex cursor-pointer list-none items-center justify-between gap-4 font-display text-base font-semibold tracking-[-0.01em] text-ink outline-none focus-visible:ring-2 focus-visible:ring-signal focus-visible:ring-offset-2 [&::-webkit-details-marker]:hidden"
-                >
-                  {item.q}
-                  <span className="shrink-0 text-lg text-signal transition-transform duration-300 [transition-timing-function:var(--ease-signal)] group-open:rotate-45">
-                    +
-                  </span>
-                </summary>
-                <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-2">{item.a}</p>
-              </details>
-            </Reveal>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
+    <div className="faq-list" id="questions">
+      {ITEMS.map((item) => (
+        <details key={item.question}>
+          <summary>
+            <span>{item.question}</span>
+            <span aria-hidden="true" className="faq-toggle">
+              +
+            </span>
+          </summary>
+          <p>{item.answer}</p>
+        </details>
+      ))}
+    </div>
+  )
 }

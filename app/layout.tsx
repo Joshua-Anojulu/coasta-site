@@ -1,45 +1,38 @@
-import type { Metadata, Viewport } from "next";
-import { Plus_Jakarta_Sans, IBM_Plex_Mono } from "next/font/google";
-import "./globals.css";
-
-const plusJakarta = Plus_Jakarta_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  display: "swap",
-  adjustFontFallback: true,
-  variable: "--font-plus-jakarta",
-});
-const plexMono = IBM_Plex_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500"],
-  variable: "--font-plex-mono",
-});
+import "@fontsource-variable/archivo"
+import "@fontsource/ibm-plex-mono/400.css"
+import "@fontsource/ibm-plex-mono/500.css"
+import type { Metadata } from "next"
+import type { ReactNode } from "react"
+import "./globals.css"
 
 export const metadata: Metadata = {
-  title: "Coasta | See the road before you reach it",
   description:
-    "Coasta turns DFW traffic cameras into an AI detection network. Police, crashes, and hazards, spotted the moment a camera sees them. Join the waitlist.",
-  metadataBase: new URL("https://coasta.app"),
-  openGraph: {
-    title: "Coasta | See the road before you reach it",
-    description:
-      "AI reads DFW traffic cameras and warns you about police, crashes, and hazards. Join the waitlist.",
-    type: "website",
-    images: [{ url: "/brand/coasta-logo.jpg", width: 1170, height: 1135 }],
+    "Coasta reads roadside cameras across DFW and alerts drivers to changing road conditions. Join the waitlist.",
+  icons: {
+    icon: "/brand/coasta-mark.png",
   },
-};
+  metadataBase: new URL(process.env["NEXT_PUBLIC_SITE_URL"] ?? "http://localhost:3000"),
+  openGraph: {
+    description:
+      "Road intelligence for DFW drivers, read through the camera's own eye.",
+    images: [
+      {
+        alt: "Coasta",
+        height: 1135,
+        url: "/brand/coasta-logo.jpg",
+        width: 1170,
+      },
+    ],
+    title: "Coasta",
+    type: "website",
+  },
+  title: "Coasta | Road intelligence for DFW",
+}
 
-export const viewport: Viewport = {
-  themeColor: "#ffffff",
-  colorScheme: "light",
-};
-
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <html lang="en" className={`${plusJakarta.variable} ${plexMono.variable}`}>
-      <body className="font-sans antialiased">
-        {children}
-      </body>
+    <html lang="en">
+      <body>{children}</body>
     </html>
-  );
+  )
 }
