@@ -3,6 +3,7 @@ import "@fontsource/ibm-plex-mono/400.css"
 import "@fontsource/ibm-plex-mono/500.css"
 import type { Metadata } from "next"
 import type { ReactNode } from "react"
+import { TweakBar } from "@/components/dev/TweakBar"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -32,7 +33,12 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {children}
+        {/* Renders null in production; the guard lives in the component so the
+            import stays static and there is one place to reason about it. */}
+        <TweakBar />
+      </body>
     </html>
   )
 }

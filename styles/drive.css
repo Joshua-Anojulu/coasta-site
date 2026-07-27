@@ -25,7 +25,7 @@
   display: grid;
   place-content: center;
   min-height: 100dvh;
-  padding: 0 clamp(20px, 6vw, 92px);
+  padding: var(--section-y, 0) clamp(20px, 6vw, 92px);
   text-align: center;
   background:
     radial-gradient(84% 52% at 50% 112%, rgb(38 78 110 / 0.5), transparent 72%),
@@ -40,15 +40,15 @@
   font-size: 11px;
   letter-spacing: 0.26em;
   text-transform: uppercase;
-  color: #67e8f9;
+  color: var(--accent, hsl(187 88% 69%));
 }
 
 .intro-head {
   margin: 18px 0 0;
-  font-size: clamp(2.5rem, 6.6vw, 5.25rem);
+  font-size: clamp(2.5rem, 6.6vw, var(--type-display, 5.25rem));
   font-weight: 660;
   line-height: 0.94;
-  letter-spacing: -0.042em;
+  letter-spacing: var(--type-track, -0.042em);
   text-shadow: 0 0 70px rgb(103 232 249 / 0.2);
 }
 
@@ -82,7 +82,7 @@
   font-size: 10px;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: #67e8f9;
+  color: var(--accent, hsl(187 88% 69%));
 }
 
 .intro-cue span:last-child { animation: drive-bob 2s ease-in-out infinite; }
@@ -128,7 +128,7 @@
   position: absolute;
   bottom: clamp(48px, 10vh, 110px);
   left: 50%;
-  width: min(520px, 88vw);
+  width: min(var(--card-w, 520px), 88vw);
   padding: 22px 24px;
   transform: translateX(-50%);
   border: 1px solid rgb(255 255 255 / 0.16);
@@ -179,4 +179,83 @@
 
 @media (prefers-reduced-motion: reduce) {
   .intro-cue span:last-child { animation: none; }
+}
+
+/* Accent derived from the two hue/saturation knobs, with the literal cyan as
+   the fallback so production is unaffected when nothing is set. */
+:root {
+  --accent: hsl(var(--accent-h, 187) var(--accent-s, 88%) 69%);
+}
+
+/* --------------------------------------------------------------------------
+   Dev tuning panel. Never rendered in production (guarded in the component).
+   -------------------------------------------------------------------------- */
+.tweakbar {
+  position: fixed;
+  z-index: 9999;
+  right: 14px;
+  bottom: 14px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.tweakbar__toggle {
+  padding: 8px 14px;
+  border: 1px solid #2c3540;
+  border-radius: 6px;
+  background: #0d1218;
+  color: #dfe8f0;
+  cursor: pointer;
+}
+
+.tweakbar__panel {
+  width: 288px;
+  max-height: 74vh;
+  margin-top: 8px;
+  padding: 12px;
+  overflow-y: auto;
+  border: 1px solid #2c3540;
+  border-radius: 10px;
+  background: #0b1016;
+  box-shadow: 0 24px 60px rgb(0 0 0 / 0.6);
+}
+
+.tweakbar__group {
+  margin: 0 0 14px;
+  padding: 8px 10px 10px;
+  border: 1px solid #1d242c;
+  border-radius: 7px;
+}
+
+.tweakbar__group legend {
+  padding: 0 6px;
+  color: var(--color-confirm);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: 9px;
+}
+
+.tweakbar__knob { display: block; margin-bottom: 9px; }
+
+.tweakbar__knob span {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 3px;
+  color: #93a3b3;
+}
+
+.tweakbar__knob b { color: #dfe8f0; font-weight: 500; }
+.tweakbar__knob input { width: 100%; }
+
+.tweakbar__actions { display: flex; gap: 8px; }
+
+.tweakbar__actions button {
+  flex: 1;
+  padding: 7px;
+  border: 1px solid #2c3540;
+  border-radius: 6px;
+  background: #151c24;
+  color: #dfe8f0;
+  cursor: pointer;
 }

@@ -99,11 +99,54 @@ export function DriveRoad({
       return offset
     }
 
+    /**
+     * Live tuning values from :root, written by the dev TweakBar.
+     *
+     * Cached and refreshed on an interval rather than read per frame:
+     * getComputedStyle forces a style resolve, and doing nine of them at 60fps
+     * is a measurable cost for values that only change when a human drags a
+     * slider. In production nothing sets these and every one falls back.
+     */
+    let tune = {
+      run: RUN,
+      traffic: 1,
+      fog: FAR,
+      lamp: 1,
+      lampGap: 45,
+      glow: 1,
+      vignette: 1,
+      steer: 1,
+      horizon: 0.44,
+    }
+
+    const readTunables = () => {
+      const cs = getComputedStyle(document.documentElement)
+      const num = (name: string, fallback: number) => {
+        const parsed = Number.parseFloat(cs.getPropertyValue(name))
+        return Number.isFinite(parsed) ? parsed : fallback
+      }
+      tune = {
+        run: num("--drive-run", RUN),
+        traffic: num("--drive-traffic", 1),
+        fog: num("--drive-fog", FAR),
+        lamp: num("--drive-lamp", 1),
+        lampGap: num("--drive-lamp-gap", 45),
+        glow: num("--drive-glow", 1),
+        vignette: num("--drive-vignette", 1),
+        steer: num("--drive-steer", 1),
+        horizon: num("--drive-horizon", 0.44),
+      }
+    }
+
+    readTunables()
+    const tuneTimer = window.setInterval(readTunables, 250)
+
     const draw = (travelled: number, nowMs: number) => {
-      const horizon = h * 0.44
+      const far = tune.fog
+      const horizon = h * tune.horizon
       const focal = w * 0.72
       const cx = w / 2
-      const ego = egoLateral(travelled)
+      const ego = egoLateral(travelled) * tune.steer
       // Flash phase for police bars and hazard flashers. Frozen under reduced
       // motion so nothing strobes.
       const phase = reduce ? 0.25 : (nowMs / 620) % 1
@@ -126,8 +169,8 @@ export function DriveRoad({
       // Carriageway.
       const nl = proj(-LANE * 1.5, 1.2)
       const nr = proj(LANE * 1.5, 1.2)
-      const fl = proj(-LANE * 1.5, FAR)
-      const fr = proj(LANE * 1.5, FAR)
+      const fl = proj(-LANE * 1.5, far)
+      const fr = proj(LANE * 1.5, far)
       ctx.beginPath()
       ctx.moveTo(nl.x, nl.y)
       ctx.lineTo(nr.x, nr.y)
@@ -162,7 +205,7 @@ export function DriveRoad({
           if (z1 < 1.2) continue
           const a = proj(lateral, Math.max(z0, 1.2))
           const b = proj(lateral, Math.max(z1, 1.3))
-          const fade = Math.max(0, 1 - z0 / FAR)
+          const fade = Math.max(0, 1 - z0 / far)
           ctx.strokeStyle = `rgba(226, 238, 250, ${0.5 * fade})`
           ctx.lineWidth = Math.max(1, 7 * fade)
           ctx.beginPath()
@@ -174,7 +217,7 @@ export function DriveRoad({
 
       for (const lateral of [-LANE * 1.5, LANE * 1.5]) {
         ctx.beginPath()
-        for (let z = 3; z < FAR; z += 6) {
+        for (let z = 3; z < far; z += 6) {
           const p = proj(lateral, z)
           if (z === 3) ctx.moveTo(p.x, p.y)
           else ctx.lineTo(p.x, p.y)
@@ -185,16 +228,16 @@ export function DriveRoad({
       }
 
       // Gantries: the speed cue.
-      const POLE = 45
+      const POLE = tune.lampGap
       for (let k = 0; k < 14; k += 1) {
         const z = k * POLE - (travelled % POLE)
-        if (z < 24 || z > FAR) continue
-        const fade = Math.max(0, 1 - z / FAR)
+        if (z < 24 || z > far) continue
+        const fade = Math.max(0, 1 - z / far)
         for (const side of [-1, 1]) {
           const base = proj(side * LANE * 2.6, z)
           const headY = base.y - (7.5 * focal) / Math.max(z, 0.6)
           const armX = base.x - side * (LANE * 0.6 * focal) / Math.max(z, 0.6)
-          ctx.strokeStyle = `rgba(158, 194, 220, ${0.4 * fade})`
+          ctx.strokeStyle = `rgba(158, 194, 220, ${0.4 * fade * Math.min(tune.lamp, 1.2)})`
           ctx.lineWidth = Math.max(1, 3.4 * fade)
           ctx.beginPath()
           ctx.moveTo(base.x, base.y)
@@ -204,7 +247,7 @@ export function DriveRoad({
 
           const r = Math.max(3, 20 * fade)
           const lamp = ctx.createRadialGradient(armX, headY, 0, armX, headY, r)
-          lamp.addColorStop(0, `rgba(255, 208, 140, ${0.62 * fade})`)
+          lamp.addColorStop(0, `rgba(255, 208, 140, ${0.62 * fade * tune.lamp})`)
           lamp.addColorStop(1, "rgba(255, 208, 140, 0)")
           ctx.fillStyle = lamp
           ctx.beginPath()
@@ -227,10 +270,12 @@ export function DriveRoad({
         }
       }
 
-      for (const v of TRAFFIC) {
+      const stride = tune.traffic >= 1 ? 1 : Math.max(1, Math.round(1 / Math.max(tune.traffic, 0.06)))
+      for (const [ti, v] of TRAFFIC.entries()) {
+        if (ti % stride !== 0) continue
         const z = v.at + travelled * v.speed - travelled
-        if (z <= 16 || z >= FAR * 0.85) continue
-        const fade = Math.max(0.12, 1 - z / (FAR * 0.85))
+        if (z <= 16 || z >= far * 0.85) continue
+        const fade = Math.max(0.12, 1 - z / (far * 0.85))
         const { halfW, bodyH } = sizeAt(z, v.truck === true)
         const p = proj(v.lane * LANE, z)
         items.push({
@@ -249,8 +294,8 @@ export function DriveRoad({
 
       for (const ev of events) {
         const z = ev.at - travelled
-        if (z <= 6 || z >= FAR) continue
-        const fade = Math.max(0.15, 1 - z / FAR)
+        if (z <= 6 || z >= far) continue
+        const fade = Math.min(1, Math.max(0.15, 1 - z / far) * tune.glow)
         const { halfW, bodyH, scale } = sizeAt(z, false)
 
         if (ev.kind === "debris") {
@@ -306,7 +351,7 @@ export function DriveRoad({
       ctx.globalCompositeOperation = "source-over"
       const vig = ctx.createRadialGradient(cx, h * 0.55, h * 0.16, cx, h * 0.55, h * 0.95)
       vig.addColorStop(0, "rgba(4, 6, 10, 0)")
-      vig.addColorStop(1, "rgba(4, 6, 10, 0.9)")
+      vig.addColorStop(1, `rgba(4, 6, 10, ${Math.min(0.98, 0.9 * tune.vignette)})`)
       ctx.fillStyle = vig
       ctx.fillRect(0, 0, w, h)
     }
@@ -314,13 +359,13 @@ export function DriveRoad({
     const frame = (now: number) => {
       raf = requestAnimationFrame(frame)
       if (!onScreen || document.visibilityState !== "visible") return
-      draw(scrollYProgress.get() * RUN, now)
+      draw(scrollYProgress.get() * tune.run, now)
     }
 
     resize()
 
     if (reduce) {
-      draw(RUN * 0.2, 0)
+      draw(tune.run * 0.2, 0)
     } else {
       raf = requestAnimationFrame(frame)
     }
@@ -332,12 +377,13 @@ export function DriveRoad({
 
     const onResize = () => {
       resize()
-      if (reduce) draw(RUN * 0.2, 0)
+      if (reduce) draw(tune.run * 0.2, 0)
     }
     window.addEventListener("resize", onResize)
 
     return () => {
       cancelAnimationFrame(raf)
+      window.clearInterval(tuneTimer)
       io.disconnect()
       window.removeEventListener("resize", onResize)
     }
