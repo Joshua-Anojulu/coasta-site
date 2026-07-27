@@ -243,3 +243,12 @@ picture {
     grid-column: 1 / -1;
   }
 }
+
+/* Tuned by Josh in the dev TweakBar, 2026-07-27, and copied in from it.
+   These are the committed defaults now; the panel starts from them. */
+:root {
+  --drive-steer: 2.5;
+  --drive-lamp: 1.6;
+  --drive-traffic: 2;
+  --section-y: 9.5rem;
+}

@@ -271,11 +271,18 @@ export function DriveRoad({
       }
 
       const stride = tune.traffic >= 1 ? 1 : Math.max(1, Math.round(1 / Math.max(tune.traffic, 0.06)))
+      // Above 1 the extra pass interleaves a second set half a gap further on,
+      // faded in proportionally so the slider is continuous rather than a step.
+      const extra = Math.max(0, Math.min(tune.traffic - 1, 1))
+      const passes: Array<{ shift: number; weight: number }> = [{ shift: 0, weight: 1 }]
+      if (extra > 0.02) passes.push({ shift: 36, weight: extra })
+
+      for (const pass of passes)
       for (const [ti, v] of TRAFFIC.entries()) {
         if (ti % stride !== 0) continue
-        const z = v.at + travelled * v.speed - travelled
+        const z = v.at + pass.shift + travelled * v.speed - travelled
         if (z <= 16 || z >= far * 0.85) continue
-        const fade = Math.max(0.12, 1 - z / (far * 0.85))
+        const fade = Math.max(0.12, 1 - z / (far * 0.85)) * pass.weight
         const { halfW, bodyH } = sizeAt(z, v.truck === true)
         const p = proj(v.lane * LANE, z)
         items.push({
