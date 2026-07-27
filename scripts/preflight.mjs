@@ -1,10 +1,9 @@
-import { readdir, readFile, stat } from "node:fs/promises"
+import { readdir, readFile } from "node:fs/promises"
 import path from "node:path"
 import sharp from "sharp"
 
 const root = process.cwd()
 const publicRoot = path.resolve(root, "public")
-const manifestPath = path.resolve(root, "data/assets-manifest.json")
 
 async function filesUnder(directory) {
   const entries = await readdir(directory, { withFileTypes: true })
@@ -23,14 +22,6 @@ function requireValue(condition, message) {
   }
 }
 
-function publicFile(assetPath) {
-  const resolved = path.resolve(publicRoot, assetPath.replace(/^\//, ""))
-  requireValue(
-    resolved.startsWith(`${publicRoot}${path.sep}`),
-    `Asset path escapes public: ${assetPath}`,
-  )
-  return resolved
-}
 
 async function prepareBrandFormats() {
   const source = path.join(publicRoot, "brand", "coasta-logo.jpg")
@@ -70,62 +61,5 @@ async function verifyPublicCameraFormats() {
   requireValue(cameraJpegs.length === 0, "Camera source JPEG files may not ship")
 }
 
-async function verifyManifest() {
-  const raw = JSON.parse(await readFile(manifestPath, "utf8"))
-  requireValue(Array.isArray(raw.slots), "Asset manifest must contain slots")
-  const ids = new Set()
-  const totals = new Map()
-  const unfilled = []
-  let eagerAssets = 1
-
-  for (const slot of raw.slots) {
-    requireValue(typeof slot.id === "string", "Every asset slot needs an id")
-    requireValue(!ids.has(slot.id), `Duplicate asset slot: ${slot.id}`)
-    ids.add(slot.id)
-    requireValue(Number.isInteger(slot.byteBudget), `Invalid budget: ${slot.id}`)
-    totals.set(slot.chapter, (totals.get(slot.chapter) ?? 0) + slot.byteBudget)
-
-    if (slot.status === "unfilled") {
-      unfilled.push(slot)
-      continue
-    }
-
-    requireValue(slot.status === "filled", `Invalid slot status: ${slot.id}`)
-    requireValue(typeof slot.avifPath === "string", `Missing AVIF: ${slot.id}`)
-    requireValue(typeof slot.webpPath === "string", `Missing WebP: ${slot.id}`)
-    requireValue(typeof slot.credit === "string", `Missing credit: ${slot.id}`)
-    const [avifStats, webpStats] = await Promise.all([
-      stat(publicFile(slot.avifPath)),
-      stat(publicFile(slot.webpPath)),
-    ])
-    requireValue(avifStats.size <= slot.byteBudget, `AVIF budget exceeded: ${slot.id}`)
-    requireValue(webpStats.size <= slot.byteBudget, `WebP budget exceeded: ${slot.id}`)
-    if (slot.loading === "eager") {
-      eagerAssets += 1
-    }
-  }
-
-  const limits = new Map([
-    ["CH1", 256_000],
-    ["CH2", 512_000],
-    ["CH3", 204_800],
-    ["CH4", 204_800],
-    ["CH5", 204_800],
-    ["CH6", 204_800],
-  ])
-  for (const [chapter, total] of totals) {
-    requireValue(total <= limits.get(chapter), `Section budget exceeded: ${chapter}`)
-  }
-  const declaredTotal = [...totals.values()].reduce((sum, value) => sum + value, 0)
-  requireValue(declaredTotal < 1_638_400, "Total camera asset budget must stay under 1.6 MB")
-  requireValue(eagerAssets <= 2, "Initial viewport may load no more than two images")
-
-  console.info(`Asset slot report: ${unfilled.length} unfilled`)
-  for (const slot of unfilled) {
-    console.info(`- ${slot.id} (${slot.chapter})`)
-  }
-  console.info("Unfilled slots render declared build gaps. Build continues.")
-}
-
 await prepareBrandFormats()
-await Promise.all([verifyCopy(), verifyPublicCameraFormats(), verifyManifest()])
+await Promise.all([verifyCopy(), verifyPublicCameraFormats()])

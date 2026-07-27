@@ -17,18 +17,33 @@ export type DriveEvent = {
  * the phone reads as a glitch. `speed` is a fraction of the camera's, so you
  * close on each vehicle and pass it rather than sitting behind a static prop.
  */
-const TRAFFIC: ReadonlyArray<{ at: number; lane: number; speed: number }> = [
+const TRAFFIC: ReadonlyArray<{ at: number; lane: number; speed: number; truck?: boolean }> = [
   // Overtake distance is at / (1 - speed). At 0.85 that put every vehicle past
   // the end of the run, so nothing was ever actually passed and the traffic sat
   // frozen near the vanishing point. These values overtake across the drive.
-  { at: 60, lane: -1, speed: 0.4 },
-  { at: 180, lane: 0.35, speed: 0.5 },
-  { at: 300, lane: 1, speed: 0.45 },
-  { at: 430, lane: -0.35, speed: 0.55 },
-  { at: 560, lane: 1, speed: 0.5 },
-  { at: 700, lane: 0, speed: 0.6 },
-  { at: 880, lane: -1, speed: 0.52 },
-  { at: 1050, lane: 0.35, speed: 0.58 },
+  // Trucks sit in the outer lanes and run slower, which is both true to life and
+  // what makes the lane structure readable.
+  // Spacing drives how many are on screen at once. A vehicle is visible over
+  // roughly (far - cull) / (1 - speed) metres of travel, so at ~70m spacing two
+  // to four are in view at any moment, which is what a real corridor looks like.
+  { at: 40, lane: -1, speed: 0.4 },
+  { at: 110, lane: 1, speed: 0.34, truck: true },
+  { at: 175, lane: 0.35, speed: 0.5 },
+  { at: 250, lane: -0.35, speed: 0.46 },
+  { at: 320, lane: 1, speed: 0.55 },
+  { at: 395, lane: -1, speed: 0.42, truck: true },
+  { at: 465, lane: 0.35, speed: 0.5 },
+  { at: 540, lane: 0, speed: 0.6 },
+  { at: 615, lane: -1, speed: 0.52 },
+  { at: 690, lane: 1, speed: 0.44, truck: true },
+  { at: 760, lane: 0.35, speed: 0.56 },
+  { at: 835, lane: -0.35, speed: 0.48 },
+  { at: 910, lane: 1, speed: 0.52 },
+  { at: 985, lane: -1, speed: 0.38, truck: true },
+  { at: 1060, lane: 0.35, speed: 0.54 },
+  { at: 1135, lane: 0, speed: 0.5 },
+  { at: 1210, lane: -0.35, speed: 0.46 },
+  { at: 1290, lane: 1, speed: 0.56 },
 ]
 
 const TINT: Record<DriveEvent["kind"], string> = {
@@ -212,28 +227,85 @@ export function DriveRoad({
         }
       }
 
-      // Traffic ahead. Nothing sells a night drive like other people's
-      // taillights, and it is the detail that makes the scene read as a real
-      // road rather than an empty diagram. Each vehicle moves, slower than the
-      // camera, so you close on it and pass it.
-      for (const v of TRAFFIC) {
-        const z = v.at + travelled * v.speed - travelled
-        if (z < 3 || z > far * 0.8) continue
-        const fade = Math.max(0, 1 - z / (far * 0.8))
-        const half = (0.85 * focal) / Math.max(z, 0.6)
-        const cxv = cx + (v.lane * LANE * focal) / Math.max(z, 0.6)
-        const yv = horizon + (CAM_H * focal) / Math.max(z, 0.6) - half * 0.5
+      // Traffic ahead: actual vehicles, not floating light dots. Each is a body
+      // silhouette in perspective with a roof line, a taillight bar and a ground
+      // shadow, so it reads as a car you are catching rather than an abstract
+      // marker. Trucks are taller and wider and sit only in the outer lanes,
+      // which is what makes the lane structure legible at a glance.
+      // Sorted far to near so nearer vehicles overlap correctly.
+      // Culled at 16m rather than 3m. Below that the perspective scale runs away:
+      // the body fills the frame, the bloom becomes a red cloud over a third of
+      // the screen, and a vehicle in an outer lane flies off sideways. In a real
+      // car that vehicle is already beside you and out of view anyway.
+      const drawable = TRAFFIC.map((v) => ({ v, z: v.at + travelled * v.speed - travelled }))
+        .filter((d) => d.z > 16 && d.z < far * 0.85)
+        .sort((a, b) => b.z - a.z)
 
-        for (const dx of [-half, half]) {
-          const g = ctx.createRadialGradient(cxv + dx, yv, 0, cxv + dx, yv, Math.max(2.5, 13 * fade))
-          g.addColorStop(0, `rgba(255, 72, 60, ${0.85 * fade})`)
-          g.addColorStop(1, "rgba(255, 72, 60, 0)")
-          ctx.fillStyle = g
+      for (const { v, z } of drawable) {
+        const s = focal / Math.max(z, 0.6)
+        const fade = Math.max(0.12, 1 - z / (far * 0.85))
+        const cxv = cx + v.lane * LANE * s
+        const ground = horizon + CAM_H * s
+
+        // Hard caps so a near vehicle stays a vehicle instead of a wall.
+        const halfW = Math.min((v.truck ? 1.28 : 0.92) * s, w * 0.11)
+        const bodyH = Math.min((v.truck ? 1.5 : 0.72) * s, h * 0.16)
+        const roofInset = v.truck ? 0.1 : 0.26
+
+        ctx.globalCompositeOperation = "source-over"
+
+        // Ground shadow: without it the vehicle floats above the tarmac.
+        const sh = ctx.createRadialGradient(cxv, ground, 0, cxv, ground, halfW * 1.5)
+        sh.addColorStop(0, `rgba(0, 0, 0, ${0.55 * fade})`)
+        sh.addColorStop(1, "rgba(0, 0, 0, 0)")
+        ctx.fillStyle = sh
+        ctx.beginPath()
+        ctx.ellipse(cxv, ground, halfW * 1.5, halfW * 0.42, 0, 0, Math.PI * 2)
+        ctx.fill()
+
+        // Body, seen from behind: a trapezoid with the roof narrower than the
+        // sills, which is enough to read as a vehicle at this scale.
+        ctx.fillStyle = `rgba(14, 18, 24, ${Math.min(1, 0.62 + fade * 0.38)})`
+        ctx.beginPath()
+        ctx.moveTo(cxv - halfW, ground)
+        ctx.lineTo(cxv + halfW, ground)
+        ctx.lineTo(cxv + halfW * (1 - roofInset), ground - bodyH)
+        ctx.lineTo(cxv - halfW * (1 - roofInset), ground - bodyH)
+        ctx.closePath()
+        ctx.fill()
+
+        // Roof edge catching the gantry light overhead.
+        ctx.strokeStyle = `rgba(150, 185, 215, ${0.3 * fade})`
+        ctx.lineWidth = Math.max(0.6, 1.2 * fade)
+        ctx.beginPath()
+        ctx.moveTo(cxv - halfW * (1 - roofInset), ground - bodyH)
+        ctx.lineTo(cxv + halfW * (1 - roofInset), ground - bodyH)
+        ctx.stroke()
+
+        // Taillights: a pair of bars set into the body, plus their bloom.
+        ctx.globalCompositeOperation = "lighter"
+        const lampY = ground - bodyH * (v.truck ? 0.24 : 0.46)
+        const lampW = Math.max(1.2, halfW * 0.3)
+        const lampH = Math.max(0.9, bodyH * 0.14)
+        for (const side of [-1, 1]) {
+          const lx = cxv + side * halfW * 0.66
+          // Bloom capped at 26px. Unclamped it scaled with the vehicle and a
+          // near car produced a red cloud across a third of the frame, which
+          // reads as a game rather than a road.
+          const bloomR = Math.min(Math.max(3, halfW * 0.9), 26)
+          const bloom = ctx.createRadialGradient(lx, lampY, 0, lx, lampY, bloomR)
+          bloom.addColorStop(0, `rgba(255, 66, 52, ${0.42 * fade})`)
+          bloom.addColorStop(1, "rgba(255, 66, 52, 0)")
+          ctx.fillStyle = bloom
           ctx.beginPath()
-          ctx.arc(cxv + dx, yv, Math.max(2.5, 13 * fade), 0, Math.PI * 2)
+          ctx.arc(lx, lampY, bloomR, 0, Math.PI * 2)
           ctx.fill()
+
+          ctx.fillStyle = `rgba(255, 92, 74, ${Math.min(1, 0.75 + fade * 0.25)})`
+          ctx.fillRect(lx - lampW / 2, lampY - lampH / 2, lampW, lampH)
         }
       }
+      ctx.globalCompositeOperation = "lighter"
 
       // Hazards, resolving out of the dark as they approach.
       for (const ev of events) {

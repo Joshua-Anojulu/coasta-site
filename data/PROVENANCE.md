@@ -76,3 +76,37 @@ coordinates, so they are part of the derivative database rather than independent
 
 Regenerate with `npm run export:geodata` whenever the snapshot changes; a stale published dataset
 would be worse than none.
+
+---
+
+## OpenStreetMap data REMOVED from the site, 2026-07-27
+
+The coverage map was abandoned as a design decision. It was the only thing on
+the site using OpenStreetMap data, so with it gone the site ships **no
+derivative database at all**. Consequences, stated plainly so nobody has to
+re-derive them later:
+
+- **ODbL share alike no longer applies.** It applied because the derived
+  geometry was bundled and reached every visitor, which is Public Use of a
+  Derivative Database. Nothing is bundled now.
+- **The attribution requirement no longer applies**, so the footer credit was
+  removed. That removal is correct, not an oversight.
+- `public/data/dfw-geometry.odbl.json`, `scripts/export-geometry-odbl.mjs`,
+  `lib/geometry/` and `data/dfw-geometry.snapshot.ts` are all deleted. They
+  remain in git history and can be restored intact if a map ever returns.
+
+The road on the site today is procedural perspective geometry drawn in canvas.
+It is not derived from OpenStreetMap or from any other dataset.
+
+**If a map ever comes back, the ODbL obligation comes back with it.** Restore
+the export script and the footer credit together with the geometry; the earlier
+section of this file records exactly why both halves are required.
+
+## Camera photography removed, 2026-07-27
+
+The ten licensed Wikimedia Commons frames are no longer used: the drive world
+draws its scene rather than photographing it, and the coverage chapter that
+held the last two frames is gone. The licensing and screening record above is
+retained because the frames are recoverable from git, and because the sourcing
+analysis (TxDOT live cameras are not licensable, paid or free-licence stock is
+the realistic route) stays true if photography ever returns.

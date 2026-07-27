@@ -1,4 +1,3 @@
-import { CoverageChapter } from "@/components/chapters/CoverageChapter"
 import { DriveChapter } from "@/components/chapters/DriveChapter"
 import { GroundChapter } from "@/components/chapters/GroundChapter"
 import { IntroChapter } from "@/components/chapters/IntroChapter"
@@ -9,13 +8,16 @@ import { SiteNav } from "@/components/SiteNav"
 /**
  * The journey, not a stack of sections about a product:
  *
- *   intro     you are on the road at night
- *   drive     four things happen, each explained before you reach it
- *   coverage  you arrive, and see the network you drove through
- *   ground    the page goes still and plain for the questions and the form
+ *   intro   you are on the road at night
+ *   drive   four things happen, each explained before you reach it
+ *   ground  the page goes still and plain for the questions and the form
  *
  * The old wall, read and alert chapters are absorbed into the drive. Keeping
  * them alongside it would have told the same story twice.
+ *
+ * There is no coverage section and no replacement for it. "Where do you cover?"
+ * is already answered twice, in the hero support line and in the FAQ, and a
+ * corridor list would assert coverage specifics nobody has verified.
  */
 export default function HomePage() {
   return (
@@ -27,8 +29,6 @@ export default function HomePage() {
       <main id="main-content">
         <IntroChapter />
         <DriveChapter />
-        <ScanWipe />
-        <CoverageChapter />
         <ScanWipe />
         <GroundChapter />
       </main>
