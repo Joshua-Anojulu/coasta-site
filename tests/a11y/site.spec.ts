@@ -118,28 +118,39 @@ test("renders assembled scenes when reduced motion is preferred", async ({
   )
 
   // When
-  const animationName = await page
-    .locator(".monitor-scanlines")
+  const cueAnimation = await page
+    .locator(".intro-cue span:last-child")
     .evaluate((element) => getComputedStyle(element).animationName)
+
+  // The road paints a static frame under reduced motion rather than an empty
+  // stage: the scene is assembled, it simply does not travel (Ch7.1).
+  const canvasPainted = await page.locator(".drive-canvas").evaluate((el) => {
+    const c = el as HTMLCanvasElement
+    return c.width > 0 && c.height > 0
+  })
 
   // Then
   expect(prefersReducedMotion).toBe(true)
-  expect(animationName).toBe("none")
-  await expect(page.locator("[data-motion-state='assembled']")).toHaveCount(4)
-  await expect(page.locator(".camera-wall__tile[data-active='true']")).toHaveCount(1)
+  expect(cueAnimation).toBe("none")
+  expect(canvasPainted).toBe(true)
+  await expect(page.locator("[data-motion-state='assembled']")).toHaveCount(1)
 })
 
-test("keeps detection depiction confined to the read chapter", async ({ page }) => {
-  // Given
-  const hero = page.locator("#approach")
-  const read = page.locator("#read")
-
-  // When
-  const heroBoxes = hero.locator(".detection-box")
-  const readBoxes = read.locator(".detection-box")
+test("never implies captured model output", async ({ page }) => {
+  // Given: the drive depicts hazards on a canvas, which is exactly the place a
+  // viewer could read as real captured detection. The disclaimer is what keeps
+  // the net impression honest, so its absence is a failure, not a cosmetic gap.
+  const drive = page.locator("#the-drive")
+  const intro = page.locator("#approach")
 
   // Then
-  await expect(heroBoxes).toHaveCount(0)
-  await expect(readBoxes).toHaveCount(1)
-  await expect(read.getByText("Concept visualization, not model output")).toBeVisible()
+  await expect(drive.locator("[data-illustration-note]")).toHaveCount(1)
+  await expect(drive.locator("[data-illustration-note]")).toHaveText(
+    /illustration of the alert sequence/i,
+  )
+
+  // The hero asserts the lens, never a detection (the round-1 review finding
+  // that removed the box from the hero in the first place).
+  await expect(intro.locator(".detection-box")).toHaveCount(0)
+  await expect(intro.locator("canvas")).toHaveCount(0)
 })

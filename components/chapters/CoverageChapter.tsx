@@ -18,10 +18,19 @@ export function CoverageChapter() {
       <div className="chapter-shell">
         <div className="chapter-heading chapter-heading--dark coverage__heading">
           <span className="chapter-kicker">DFW / COVERAGE</span>
-          <h2>A camera is never just a dot.</h2>
+          <h2>Coverage is a map, not a number.</h2>
           <p>
-            Focus or hover a camera to read its road reference. Press Escape
-            to clear the reading.
+            Focus or hover a point to read the road it sits on. Press Escape to
+            clear the reading.
+          </p>
+          {/* The points are positions computed against OpenStreetMap road
+              geometry, not installed camera locations, and the underlying ids
+              are synthetic. Saying so is the same rule that removed the
+              detection box from the hero: the page may not imply a capability
+              or an inventory that does not exist. */}
+          <p className="coverage__disclaimer">
+            These points mark corridors in the launch area, drawn on real DFW
+            road geometry. They are not a map of installed cameras.
           </p>
         </div>
         <div className="coverage__resolve">

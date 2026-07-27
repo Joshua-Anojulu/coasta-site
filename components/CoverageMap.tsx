@@ -47,7 +47,10 @@ export function CoverageMap({ model }: CoverageMapProps) {
           {model.cameras.map((camera) => (
             <button
               aria-describedby="coverage-status"
-              aria-label={`${camera.id}, ${camera.roadRef}`}
+              /* Names the real road, never the synthetic CAM-### id. Announcing
+                 an invented identifier would assert a camera inventory that
+                 does not exist. */
+              aria-label={`Coverage point on ${camera.roadRef}`}
               className="coverage-camera"
               data-active={focus.activeId === camera.id}
               data-camera-id={camera.id}
@@ -71,12 +74,12 @@ export function CoverageMap({ model }: CoverageMapProps) {
       <div aria-live="polite" className="coverage-status" id="coverage-status">
         {activeCamera === undefined ? (
           <>
-            <span>FOCUS A CAMERA</span>
+            <span>FOCUS A POINT</span>
             <strong>Road reference appears here</strong>
           </>
         ) : (
           <>
-            <span>{activeCamera.id}</span>
+            <span>COVERAGE POINT</span>
             <strong>{activeCamera.roadRef}</strong>
           </>
         )}

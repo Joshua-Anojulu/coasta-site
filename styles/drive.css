@@ -1,0 +1,182 @@
+/* The drive world. The road ahead at night, from the driver's seat, with scroll
+   as the accelerator. Replaces the old approach / wall / read / alert chapters,
+   which told the story as sections about a product rather than as things that
+   happen to you. */
+
+/* Content that exists only for assistive tech. The road canvas is aria-hidden
+   by design, so the alert sequence has to be readable without it (Ch7.3). */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Intro
+   -------------------------------------------------------------------------- */
+.chapter-intro {
+  position: relative;
+  display: grid;
+  place-content: center;
+  min-height: 100dvh;
+  padding: 0 clamp(20px, 6vw, 92px);
+  text-align: center;
+  background:
+    radial-gradient(84% 52% at 50% 112%, rgb(38 78 110 / 0.5), transparent 72%),
+    var(--color-ground);
+}
+
+.intro-inner { max-width: 900px; margin: 0 auto; }
+
+.intro-eyebrow {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: #67e8f9;
+}
+
+.intro-head {
+  margin: 18px 0 0;
+  font-size: clamp(2.5rem, 6.6vw, 5.25rem);
+  font-weight: 660;
+  line-height: 0.94;
+  letter-spacing: -0.042em;
+  text-shadow: 0 0 70px rgb(103 232 249 / 0.2);
+}
+
+.intro-sub {
+  max-width: 46ch;
+  margin: 20px auto 32px;
+  font-size: clamp(0.98rem, 1.2vw, 1.1rem);
+  line-height: 1.6;
+  color: var(--color-phosphor-dim);
+}
+
+/* The awkward truth next to the action (Ch2.6): scope, stated plainly, rather
+   than a pricing claim nobody has verified. */
+.intro-support {
+  margin: 18px 0 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--color-phosphor-dim);
+}
+
+.intro-cue {
+  position: absolute;
+  bottom: clamp(24px, 5vh, 48px);
+  left: 50%;
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #67e8f9;
+}
+
+.intro-cue span:last-child { animation: drive-bob 2s ease-in-out infinite; }
+
+@keyframes drive-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(6px); }
+}
+
+.intro-cue:focus-visible {
+  outline: 2px solid #67e8f9;
+  outline-offset: 6px;
+}
+
+/* --------------------------------------------------------------------------
+   The drive
+   -------------------------------------------------------------------------- */
+/* 520vh of travel. Four hazards need room to resolve out of the distance at a
+   readable pace, and this stays inside the Ch3.10 budget: CSS sticky owns the
+   pin, so no ScrollTrigger competes for the same element. */
+.chapter-drive {
+  position: relative;
+  height: 520vh;
+  background: #04060a;
+}
+
+.drive-view {
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.drive-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.drive-card {
+  position: absolute;
+  bottom: clamp(48px, 10vh, 110px);
+  left: 50%;
+  width: min(520px, 88vw);
+  padding: 22px 24px;
+  transform: translateX(-50%);
+  border: 1px solid rgb(255 255 255 / 0.16);
+  border-radius: 16px;
+  /* Solid, not translucent. A blurred panel over a moving scene costs
+     legibility for a look, and this is the layer the user actually reads. */
+  background: #080c12;
+  box-shadow: 0 30px 70px rgb(0 0 0 / 0.62);
+  text-align: left;
+}
+
+.drive-card__eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.drive-card__title {
+  margin: 10px 0 0;
+  font-size: clamp(1.15rem, 2vw, 1.5rem);
+  font-weight: 620;
+  letter-spacing: -0.02em;
+}
+
+.drive-card__body {
+  margin: 10px 0 0;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: #a6b8c9;
+}
+
+.drive-note {
+  position: absolute;
+  right: 16px;
+  bottom: 14px;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  color: #46596b;
+}
+
+@media (width < 720px) {
+  .chapter-drive { height: 460vh; }
+  .drive-card { bottom: 32px; padding: 18px 18px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intro-cue span:last-child { animation: none; }
+}

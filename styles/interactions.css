@@ -123,6 +123,19 @@
   margin-bottom: 56px;
 }
 
+/* Set in the diegetic mono so it reads as an instrument annotation rather than
+   apologetic small print, but kept plainly legible. It is a factual limit on
+   what the map shows, not a disclaimer to be hidden. */
+.coverage__disclaimer {
+  max-width: 54ch;
+  margin-top: 18px;
+  color: var(--color-phosphor-dim);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  letter-spacing: 0.02em;
+}
+
 .coverage__resolve {
   position: relative;
   z-index: 2;
