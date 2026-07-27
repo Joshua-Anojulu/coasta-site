@@ -1,355 +1,274 @@
-# Plan: Clearsky redesign (light blue/white professional re-theme + interactivity)
-_Locked via grill — by Claude + Josh (CEO direction: professionalism first).
-Revised after Codex Round 1._
+---
+review_provenance:
+  status: approved-final
+  rounds:
+    - round: 1
+      reviewer: codex
+      model: gpt-5.5
+      effort: high
+      cli_version: codex-cli/0.145.0
+      session: 019fa1d8-420a-7c83-b9fe-a8107afe1e13
+      verdict: REVISE
+      findings: 15
+      body_sha256: "not retained — the reviewed draft was revised before hashing; a REVISE
+        verdict licenses no provenance claim, so nothing is inflated by the omission"
+      revised_body_sha256: 3b66456df02818c6831a7699a66d25772c79103e63bb68ac94dd12545671d04d
+    - round: 2
+      reviewer: codex
+      model: gpt-5.5
+      effort: high
+      cli_version: codex-cli/0.145.0
+      session: 019fa1d8-420a-7c83-b9fe-a8107afe1e13
+      verdict: REVISE
+      body_sha256: 3b66456df02818c6831a7699a66d25772c79103e63bb68ac94dd12545671d04d
+      note: all 15 round-1 findings marked ADDRESSED; 4 new internal-consistency defects
+      revised_body_sha256: c7d0f3006106cfa8974fa35981608591ec7c89700d9e7deb5706108aeb503236
+    - round: 3
+      reviewer: codex
+      model: gpt-5.5
+      effort: high
+      cli_version: codex-cli/0.145.0
+      session: 019fa1d8-420a-7c83-b9fe-a8107afe1e13
+      verdict: REVISE
+      body_sha256: c7d0f3006106cfa8974fa35981608591ec7c89700d9e7deb5706108aeb503236
+      note: round-2 fixes confirmed genuine; 3 remaining cross-section contradictions
+      revised_body_sha256: e88ee1066b59d1cdb67af99a6c9bac74a4be2b5e638fb8f0e55a63616a1aed9c
+    - round: 4
+      reviewer: codex
+      model: gpt-5.5
+      effort: high
+      cli_version: codex-cli/0.145.0
+      session: 019fa1d8-420a-7c83-b9fe-a8107afe1e13
+      verdict: APPROVED
+      body_sha256: e88ee1066b59d1cdb67af99a6c9bac74a4be2b5e638fb8f0e55a63616a1aed9c
+  historical_cross_model_review: true
+  final_body_cross_model_approved: true
+  final_body_sha256: e88ee1066b59d1cdb67af99a6c9bac74a4be2b5e638fb8f0e55a63616a1aed9c
+  degraded_rounds: []
+---
+
+# Plan: Coasta site full redesign, "the camera's own eye"
+_Locked via grill, by Claude + Josh, 2026-07-26_
 
 ## Goal
 
-Re-theme the entire Coasta site from the dark "Night Watch" identity to a light,
-blue-and-white, professional identity ("Clearsky") per CEO direction, while keeping
-the site's substance: the real DFW map with detection replay, the seven-section
-structure, the waitlist funnel, and all honesty constraints (SIM tags, no live
-claims). Add restrained dynamism: calm blue gradients, scroll-reveals, and one
-flagship interaction (hover/tap a hero-map camera to spotlight it with an info
-card). Fix the audited defects: the unrelated rock-cliff Pipeline image (replace
-with a generated real-looking elevated highway traffic-camera still), the
-left-pinned Pipeline composition, the lifeless BlindSpot wall, and wide-viewport
-sprawl. Budgets hold: Lighthouse mobile LCP <= 2.5s, CLS <= 0.1, all tests green.
-
-## Design system (locked)
-
-- **Palette (contrast-checked):** ground `#FFFFFF` / cool near-white `#F7F9FC`;
-  ink `#0B1B33` (navy), secondary ink `#4A5A73`; brand blue `#1D5BD8` (detections
-  in progress, primary actions; white-on-blue buttons pass AA); deep blue
-  `#123C8C`; soft blue tints `#DCE8FB` and `#DDEBFC` (hero sky deep stop);
-  **status red `#B93535`** (>= 4.5:1 on
-  white and on the waitlist tint) split into TWO tokens with one initial value:
-  `--color-confirmed` (confirmed incidents only) and `--color-error` (form
-  errors) so the semantics can diverge later; map tones (decorative, aria-hidden
-  layer, tuned for legibility not AA): panel `#F7F9FC`, interstate roads
-  `#5A7FBC`, lesser roads `#8AA6CE`, water `#CBDDF2`; canvas map labels use
-  secondary ink `#4A5A73`. Amber `#FFB000` and alert `#FF3B30` fully retired.
-- **Token migration table (decision-complete):**
-  | old | new | consumers to migrate |
-  |---|---|---|
-  | `--color-asphalt` #0a0c0f | `--color-ground` #FFFFFF | body, Nav bg, Hero gradient, Pipeline card bg, CTA text-on-blue |
-  | `--color-surface` #11141a | `--color-panel` #F7F9FC | AlertCard inner, inputs, phone shell, map panel variant |
-  | `--color-signal` #ffb000 | `--color-signal` #1D5BD8 (blue) | every `text-signal`/`bg-signal`/`border-signal` use (Nav, Hero CTA, AlertCard, BlindSpot, Pipeline, PhonePreview, Catches, Waitlist) |
-  | `--color-alert` #ff3b30 | `--color-confirmed` #B93535 | AlertCard confirmed, Pipeline confirmed card |
-  | (new) | `--color-error` #B93535 | Waitlist error text |
-  | `--color-fog` #e8eaed | `--color-ink` #0B1B33 | all primary text |
-  | `--color-fog-dim` #8a919c | `--color-ink-2` #4A5A73 | all secondary text, mono chips |
-  | `--color-steel` #4a6b8a | RETIRED (canvas roles replace it) | MapCanvas only |
-  | (new) | `--color-border` = ink at 10% | every `border-white/*` use (all cards, chips, inputs, footer rule) |
-  | (new) | elevation: soft shadow tokens | replaces white inset-shadow treatments that vanish on light surfaces (AlertCard, phone shell) |
-  | (new) | `--color-placeholder` = full-opacity `#4A5A73` | input placeholders (the current `/50` opacity pattern fails AA on white) |
-  | (new) | `--color-input-border` = `#4A5A73` | Waitlist input borders (ink@10% computes 1.23:1 vs white - invisible; field boundaries need >= 3:1 per WCAG 1.4.11; focus state stays blue) |
-  | (new) | map role tokens | MapCanvas typed role palette (below) |
-  **Consumer lists are representative and SCAN-ENFORCED, not exhaustive** (the
-  scans are the completeness guarantee); known additional consumers: Coverage
-  status color, Footer wordmark O, PhonePreview's `bg-asphalt` phone screen +
-  feed cards, BlindSpot tiles. Every `text-alert`, `bg-surface`,
-  `text-steel`-family and `-white/`-suffixed utility consumer (`bg-white/5`,
-  `bg-white/10`, `decoration-white/20`, `border-white/*` - ALL invisible on
-  light ground) is migrated (Catches categorical red -> blue per the
-  retired-categorical-red decision; PhonePreview KIND_COLOR -> blue tones);
-  the retirement scan covers `alert`, `surface`, `steel`, `asphalt`, `fog`,
-  the broad term `-white/` (any utility prefix), and `shadow-[inset` alongside
-  the raw hex values; the bar for `text-alert` is ZERO survivors (the
-  error/confirmed roles use the new token names).
-- **Gradients (calm, the user's requested visual signature - ENUMERATED so
-  they actually register on uncalibrated sRGB laptop panels):** soft linear
-  washes only - hero sky `#DDEBFC -> #FFFFFF` (deep stop in the #DCE8FB family;
-  the earlier #EAF2FE start computes 1.09:1 vs white and would read flat);
-  BlindSpot->Pipeline seam wash `#F2F7FE -> #FFFFFF`; Coverage panel ambient
-  `#F7F9FC`; waitlist band `#DCE8FB -> #F7F9FC`; footer plain white. Browser
-  QA verifies each band is visible on a standard laptop panel. No mesh
-  gradients, no purple, no dark washes.
-- **Type:** Plus Jakarta Sans (next/font/google, 400/500/600/700, `display:
-  "swap"` with `adjustFontFallback` for CLS safety) becomes the BODY family -
-  sentence case headlines with a LOCKED scale - hero clamp(2.4rem,5vw,4.2rem)
-  w700; h2 clamp(1.75rem,3.2vw,2.75rem) w600; h3 1.25rem w600; body 1rem w400;
-  small 0.875rem; headings letter-spacing -0.01em - normal width, and
-  `.font-display`'s `font-stretch: 125%` declaration is explicitly DELETED
-  from globals.css (not merely unused). **Kickers/eyebrows (the current
-  `text-xs uppercase tracking-[0.25em]` openers in BlindSpot/Pipeline/
-  Waitlist): re-specced as sentence case, normal tracking, `font-medium
-  text-signal` - the 0.25em tracking is removed with the uppercase, never
-  combined with sentence case.** **Variable wiring (decision-complete):** the Plus
-  Jakarta next/font variable maps to BOTH `--font-sans` and `--font-display` in
-  the Tailwind theme (existing `.font-display` classes keep working and resolve
-  to Jakarta), the Archivo variable and import are deleted, and the body
-  switches from `font-mono` to `font-sans`. **Critical coupling:** the body is currently
-  `font-mono` sitewide, so flipping it to sans silently de-monos every data
-  surface; the migration includes an explicit inventory that retags EVERY data
-  surface with `font-mono`: AlertCard camId/SIM/confidence, Pipeline cam-label/
-  confidence/alert-card chrome, PhonePreview header + feed rows + SIM chips,
-  BlindSpot tile IDs, Catches numerals + ticker, Coverage statuses, Nav
-  "network: DFW / demo", Waitlist nothing (no data), footer nothing. IBM Plex
-  Mono stays for exactly those surfaces. Archivo removed from the pipeline.
-- **Uppercase exceptions (enumerated):** the COASTA wordmark, mono data chips
-  and statuses (SIM, camera/feed IDs, coverage statuses, ticker entries). All
-  other display/headline/CTA text is sentence case; verification includes a
-  `uppercase`-class + visible-copy audit against this list.
-- **Voice/copy:** existing copy stays except where treatment changes force edits;
-  NO em dashes or en dashes anywhere; sentence case replaces uppercase in
-  headlines/CTAs (mono data chips may stay uppercase); no invented statistics;
-  every demo number keeps its co-located SIM chip; the site never claims live
-  functionality; the OSM credit stays in the footer.
-- **Composition:** one container discipline - `max-w-6xl mx-auto` for section
-  content (map hero stays full-bleed); the Pipeline frame is CENTERED
-  (`mx-auto`); no section may pin content to the left half of viewports >= 1280px
-  wide.
-- **Motion:** scroll-reveals via a single client-leaf `<Reveal>` primitive
-  (fade + 14px rise, once, 0.5-0.7s, existing `--ease-signal` cubic-bezier which
-  stays as the easing token) wrapping only safe descendants - **never a sticky
-  ancestor**: Pipeline's 300vh sticky container is exempt (only its inner copy
-  block reveals), and server components are not converted wholesale (Reveal is
-  the only new client boundary). Modest stagger for lists/tiles; the Catches
-  marquee stays; ALL motion including reveals disabled under
-  `prefers-reduced-motion` (content visible statically); never
-  `window.addEventListener("scroll")`; no `linear`/`ease-in-out` on UI
-  transitions.
+Rebuild the Coasta consumer waitlist site from scratch as a new Next application, committing to a
+single aesthetic world: **the camera's own eye**. The page is not a marketing site *about* a traffic
+camera product; the page *is* the feed. Visitors read the product thesis by looking through the same
+lens Coasta's models look through. The site targets DFW drivers only, drives one action (join the
+waitlist), and carries a content layer dense enough to answer the questions a driver actually
+arrives with. Nothing is carried forward from the previous Night Watch or Clearsky builds except the
+company's real brand mark and the FAQ copy, the latter by explicit decision and with a blocking
+caveat recorded below.
 
 ## Approach
 
-0. **`docs/DESIGN.md` first:** commit the Clearsky design system as an artifact
-   (tokens incl. the migration table, type scale + mono inventory, spacing,
-   elevation, motion rules, uppercase exceptions, contrast table, component
-   state colors) PLUS a primitives-and-accessibility section: the `Reveal`
-   primitive contract, the hotspot/card/controlled-spotlight architecture and
-   its keyboard behavior map, and an accepted-debt note for the decorative
-   road-contrast exception - so the system outlives this plan file.
-1. **Token layer (`app/globals.css` + `app/layout.tsx`):** replace the Night Watch
-   custom-property palette with the Clearsky tokens above (keep the same custom
-   property NAMES where semantics map 1:1 - e.g. `--color-signal` becomes the
-   brand blue value - so component class churn is minimized; rename only where
-   semantics changed, e.g. `--color-asphalt` -> `--color-ground`). Swap Archivo
-   for Plus Jakarta Sans via next/font. ADD a theme-color via Next 15's
-   `viewport` export (none exists today) plus explicit `color-scheme: light`;
-   body classes updated; the grain overlay is REMOVED entirely (decision:
-   film grain is a dark-theme device and reads as noise on white).
-   `.lane-divider` re-tuned for light (soft blue rule).
-2. **MapCanvas light atlas re-skin (`components/MapCanvas.tsx`):** same two-canvas
-   architecture, arcs, dots, and props contract; the single STEEL constant is
-   replaced by a **typed canvas role palette** (`MAP_COLORS: {panel, grid,
-   water, roadInterstate, roadMinor, label, cameraIdle, cameraActive,
-   spotlight, dot, detect, confirmed}` - `panel` backs the background="panel"
-   variant, `spotlight` is the hover/focus highlight, distinct from the
-   replay's `cameraActive`). **Each role is a complete paint definition
-   `{color, alpha, width?}` - the dark theme's alphas do NOT carry over** (0.05
-   grid / 0.08 water are invisible on `#F7F9FC`): grid `#6B8CC4` a0.18; water
-   `#CBDDF2` a1.0 solid; roadInterstate `#5A7FBC` a0.9 w2.2 over a soft wide
-   understroke; roadMinor `#8AA6CE` a0.8 w1.2; label ink-2 a1.0; **signal
-   hierarchy rule: event markers (detect/confirmed/spotlight/cameraActive)
-   always carry the highest visual weight on the canvas; infrastructure stays
-   quiet:** cameraIdle solid `#5A7FBC` (~3.3:1 vs panel - AT the floor, not
-   far above it, so idle nodes never outshout events) 2.5px node **over a thin
-   1px white casing ring (nodes sit ON same-color interstate strokes; the
-   casing keeps them visible against the road, while their small size and
-   road-family hue keep them quieter than event markers)**, with breathing
-   moved to a surrounding halo (radius/alpha of the HALO animates, never the
-   node's own opacity); dot `#123C8C` a0.3; **cameraActive
-   (explicit): `#1D5BD8` filled 4px node over a 2px white casing ring**;
-   detect ring `#1D5BD8` w2 with a white casing understroke (cartography
-   style, separating it from same-hue roads); confirmed `#B93535` with the
-   same white casing; **spotlight: `#1D5BD8` double OUTLINE ring (unfilled,
-   two thin concentric strokes) - structurally distinct from cameraActive's
-   filled node**; exact values tunable in the visual pass within these
-   contrast floors and the hierarchy rule, so each draw layer is independently
-   tunable and reviewable; glow
-   passes become subtle depth strokes (stroke-weight hierarchy, minimal glow on
-   light ground; +0.25px width tuning allowance at DPR 1); ambient dots deep
-   blue low alpha; detection ring/brackets `detect` blue while detecting,
-   `confirmed` red when confirmed; camera nodes per the cameraIdle/cameraActive
-   paint specs above (halo breathing - the current node-opacity breathing is
-   retired). **New optional prop `background?: "transparent" |
-   "panel"` (default "panel"):** Hero passes "transparent" so its CSS sky
-   gradient shows through; PhonePreview/Coverage keep the opaque panel fill.
-   `createTrafficDots` export and all geometry tests remain untouched.
-3. **Flagship interaction - camera spotlight (Hero + MapCanvas):**
-   - **Single state owner, controlled renderer:** Hero owns `spotlightCameraId:
-     string | null` and passes it to MapCanvas as a new optional controlled
-     prop `spotlightId?: string | null` (additive - existing consumers
-     unaffected). MapCanvas is a PURE RENDERER for the spotlight: it draws the
-     highlight for `spotlightId` in every draw path (running and paused) and
-     handles NO pointer input for it. ALL input - hover, tap, focus, keyboard -
-     lives in Hero's hotspot layer (below), so keyboard selection reliably
-     drives the same canvas redraw as mouse. Hero owns the card UI (white card:
-     camera ID in mono, road name, status line "Simulated feed" with SIM chip).
-   - **Road-name helper (pure, tested):** `nearestRouteRef(lonlat)` in
-     `lib/dfw/` resolves the closest ROAD_SEGMENT within ~150m and formats its
-     `routes[]` deterministically (fixed priority order, first match); cameras
-     carry no road field so this helper is the source of truth. **Null
-     fallback:** when no segment is within range it returns null and the card
-     shows the generic "DFW metroplex" instead of a road line.
-   - **Hotspot layer owns all input (canvas stays aria-hidden):** Hero renders
-     one focusable DOM hotspot button per VISIBLE camera, absolutely positioned
-     from the same `project()` output. **State model:** separate `hoveredId`,
-     `focusedId`, `pinnedId` with derived `spotlightId = pinnedId ?? hoveredId
-     ?? focusedId`; native button `onClick` is the ONLY activation path (no
-     keydown toggles - native buttons already click on Enter/Space; keydown
-     handles Escape only) and toggles `pinnedId`; pointerenter/leave set/clear
-     `hoveredId` ONLY for mouse-type pointers (touch pointers never set hover,
-     so scrolling cannot open a card); `pointercancel` clears transient state;
-     blur clears `focusedId`; leave/blur never clear a pinned selection;
-     outside-tap and Escape clear `pinnedId`. The canvas has zero spotlight
-     pointer handling. **Target geometry:** hotspot buttons are >= 44x44 CSS px
-     centered on the node with a high-contrast 2px blue `focus-visible` ring.
-     **Occlusion:** hotspots whose rects intersect the nav bar, the RESERVED
-     alert-card rect (a fixed w-72 x max-card-height region anchored at
-     right-5/top-24, used for exclusion regardless of whether AlertCard is
-     currently rendered - the card mounts/unmounts with replay phase, so a
-     measured rect would be 0x0 for much of the loop), the headline block, or
-     the CTA are excluded (not rendered), recomputed with positions on resize.
-     **Group semantics + order:** the hotspot layer renders AFTER the CTA in
-     DOM order inside a `role="group"` labeled "Camera network (simulated)" so
-     keyboard users reach the primary CTA before the eight-odd camera stops.
-     Accessible names ("Camera CAM-114, simulated feed"), card associated via
-     aria-describedby.
-   - **Resize/visibility contract:** Hero computes hotspot positions with its
-     own ResizeObserver on the map container (same dimensions MapCanvas
-     renders into) and recomputes on resize; cameras whose projected position
-     falls outside the visible canvas (portrait focus window crops Fort Worth)
-     are NOT rendered as hotspots (out of tab order) - the accessible
-     experience is the visible map's cameras.
-   - **Card mechanics:** rAF-throttled position updates; hotspots do the
-     hit-testing natively (no separate pure hit-test - the previously planned
-     nearest-camera hit-test unit test is obsolete and NOT written); card
-     placement clamps and flips at viewport edges via a pure, tested
-     `placeCard` helper; card is pointer-events-none and never shifts layout.
-     Keyboard QA is part of verification.
-   - **Paused/reduced-motion:** spotlight selection triggers a one-shot redraw
-     of the paused canvas so the highlight ring appears without animation;
-     card show/hide is non-animated in that mode.
-   - **New logic gets unit tests** (this plan DOES add tests): the spotlight
-     state reducer (hover/focus/pin/dismiss transitions incl. the
-     pinned-survives-leave rule), `nearestRouteRef`, and `placeCard` clamp/flip
-     - all as pure functions in lib.
-4. **Section re-themes (all seven + nav/footer),** preserving structure and copy:
-   - Nav: white translucent bar, navy wordmark (blue O accent kept), blue CTA.
-   - Hero: sky gradient wash over the light map, navy sentence-case headline
-     ("Every camera. Now a sensor." stays), blue CTA button, alert card as white
-     elevated card (soft shadow, blue/red state colors).
-   - BlindSpot wall relit: light tiles with soft borders and a faint animated
-     blue static/scan texture (CSS only), the periodic detection tile gets a
-     visible blue ring pulse + mono label brightening; wall is aria-hidden
-     (already) and the interval remains reduced-motion gated.
-   - Pipeline: frame centered with `mx-auto`; **the dark-theme image treatment
-     is DELETED, not inherited** - the current `opacity-70
-     [filter:saturate(0.4)_hue-rotate(190deg)]` stack would render the new
-     photographic still as washed-out teal on white; replacement treatment:
-     full opacity, no hue rotation, a gentle `contrast(1.02) brightness(0.98)`
-     normalization at most, scanline overlay softened to low-alpha and thinner
-     for light chrome, thin `--color-border` frame edge; stage overlays
-     re-colored (blue detect, red confirmed card); copy block centered under
-     the frame at readable measure.
-   - PhonePreview: light phone shell, light map (focus window), white feed cards
-     with blue kind-colors; **categorical red is retired with the amber palette**
-     (the prior "keep categorical red" decision was scoped to Night Watch; on a
-     white page red category labels read as alarm) - crash rows use deep blue
-     like the rest, red appears only on active simulated confirmed states
-     (Hero/Pipeline cards). Flagged here for Josh's final sign-off.
-   - Catches: light list, mono numerals in blue, marquee ticker restyled light.
-   - Coverage: light map panel + copy, same layout, centered discipline.
-   - Waitlist: white inputs on the soft-blue gradient band with
-     `--color-input-border` borders (>= 3:1 field boundaries), navy labels,
-     blue button; **disabled/sending state uses solid tokens (bg `#DCE8FB`,
-     text `#4A5A73`), never `disabled:opacity-*`** (white-on-60%-blue computes
-     ~2.7:1 and escapes every scan); hover/disabled button states are
-     enumerated in DESIGN.md's component-states section; error text uses
-     `--color-error`; `role="alert"` stays.
-   - Footer: light, keeps simulated-demonstrations line + OSM credit + (c) line.
-5. **Pipeline camera still (`public/cam-frame.jpg`):** replaced with a GENERATED
-   photorealistic elevated fixed-position highway traffic-camera still (daytime
-   or dusk, DFW-plausible multi-lane highway, no readable plates or faces, no
-   real signage text). If the builder session has a native image tool (Codex
-   does), generate at 1600x900 and save over the file; otherwise this step is a
-   named deliverable gap reported for the controller to fill. **Delivery:** the
-   frame moves to `next/image` with explicit `width`/`height` (1600x900),
-   `sizes`, and the aspect ratio reserved in layout (zero CLS); below the fold
-   so lazy loading stays, no `priority`. The detection overlay anchor
-   coordinates are re-tuned to a plausible vehicle region of the new image.
-5b. **Copy honesty + treatment sweep:** the plan's own language and the site's
-   copy drop every live-operation claim: PhonePreview's "Live hazard map of
-   DFW" becomes "Hazard map of DFW, briefed before you drive"; PhonePreview's
-   "Route monitoring with push alerts" becomes "Route alerts pushed before you
-   drive"; the spotlight card status is "Simulated feed"; internal plan wording
-   uses "active confirmed states" not "live". **Detection-state labels
-   (AlertCard's "POLICE DETECTING/CONFIRMED", Pipeline's "POLICE VEHICLE"/
-   "ALERT CONFIRMED") move to sentence case ("Police detecting", "Alert
-   confirmed") per the professional type direction - they are NOT in the
-   uppercase exception list.** Verification greps visible copy
-   case-insensitively for "live" AND "monitoring" and requires each hit to be
-   justified or removed.
-6. **Verification:**
-   - `npm test` fully green: existing 42 untouched (geometry/extract/replay/
-     validate)
-     PLUS the new interaction unit tests (spotlight reducer, nearestRouteRef,
-     placeCard) from step 3.
-   - `npm run build` clean; em/en dash scan clean; **case-insensitive**
-     retirement scan over app/components/lib using the FULL term list from the
-     token-migration section (raw legacy hexes any case, `alert`, `surface`,
-     `steel`, `asphalt`, `fog`, the broad `-white/` term, `shadow-[inset`,
-     arbitrary Tailwind color classes, `Archivo`), with ZERO `text-alert`
-     survivors; plus the "live"/"monitoring" copy grep from 5b and the
-     uppercase audit from the type rules. The token section's list is the
-     single authoritative scan definition.
-   - Lighthouse mobile production, 3-run median: LCP <= 2.5s, CLS <= 0.1.
-   - Browser QA (visible browser, mobile AND desktop widths 375/768/1512):
-     light theme cohesive; Pipeline centered; BlindSpot wall alive; reveals
-     fire once and stay; reduced-motion shows everything statically INCLUDING a
-     static spotlight on selection. Interaction scenarios: mouse hover/leave,
-     touch tap/outside-tap/scroll-does-not-open, keyboard Tab order (offscreen
-     cameras absent), Enter/Space toggle, Escape dismiss, card follows
-     aria-describedby in the accessibility tree, card clamps/flips at viewport
-     edges.
-   - Contrast: all text pairs >= WCAG AA on their grounds (navy on white, ink on
-     tints, white on blue buttons).
-7. **Commits (no Claude co-author trailers, hard rule):**
-   (a) `feat: clearsky light theme tokens and typography`
-   (b) `feat: light atlas map render and camera spotlight interaction`
-   (c) `feat: re-theme sections for clearsky with scroll reveals`
-   (d) `feat: generated highway camera still for pipeline` (or folded into c if
-   generated in-session).
+### Phase 0, assets and licensing (blocking, do first)
 
-## Key decisions & tradeoffs
+**Default-deny.** Silence or ambiguity in a source's terms reads as *prohibited*, never as permitted.
+TxDOT publishes live cameras for real-time monitoring and states the feeds are not recorded; its
+photo library operates under separate terms that cover photo-library assets, **not** live ITS stills.
+Assume live-camera reuse is disallowed until a written permission says otherwise.
 
-- **Full re-theme over incremental tinting:** the gamer feel is systemic (dark
-  ground + amber + stretched uppercase); only a coordinated palette/type/
-  treatment swap reads professional. Structure and logic are preserved to keep
-  the change reviewable; existing tests stay untouched while the NEW interaction
-  logic ships with its own unit tests (step 3) - no test is weakened.
-- **Token-name reuse (`--color-signal` = blue):** minimizes class churn across
-  seven components at the cost of a slightly stale token name; renames limited
-  to semantic breaks. Tradeoff accepted for diff size and review focus.
-- **Categorical red retired (reverses a Night Watch-scoped decision):** red on
-  white reads as alarm; blue categories + red-for-confirmed-only is the
-  professional severity language. Explicitly resurfaced for Josh's sign-off.
-- **Light map needs contrast discipline, not glow:** heavy glow on white looks
-  smeared; depth comes from stroke-weight hierarchy and the soft panel ground.
-- **Generated (not stock) camera still:** matches the frame's overlay geometry
-  needs, avoids licensing and "readable plate" risks; clearly SIM-tagged in the
-  overlay chrome as today.
-- **Uppercase retired except the enumerated exceptions (wordmark, mono data
-  chips/statuses):** the single biggest de-gamering lever after the palette
-  itself.
+0.1 Enumerate candidate DFW sources (TxDOT statewide, DalTrans / Dallas County, City of Fort Worth).
+0.2 **Per-frame licensing record** in `data/PROVENANCE.md`, all six fields required before a frame may
+    be used: source-owner identity, endpoint URL, permission basis (written grant / photo-library
+    terms / paid licence), capture method, capture date, and named sign-off. A frame missing any
+    field does not ship.
+0.3 **Permitted-source order of preference:** (a) written permission from the operating agency,
+    (b) agency photo-library or public-gallery assets whose terms explicitly allow reuse,
+    (c) paid licensed stock of real roadways. Live ITS still endpoints are excluded unless (a) exists.
+    **Location honesty rule for (c):** prefer DFW or Texas roadways. If non-Texas stock is used, its
+    actual location must appear in the credit and it must never be positioned so as to imply DFW
+    coverage. The page asserts a specific coverage area, so imagery that silently stands in for it
+    repeats the defect that ruled out generated frames.
+0.4 **Content screening, every frame, before it enters the repo:**
+    - Reject or blur any legible licence plate or identifiable face. The shipped marketing assets are
+      themselves a privacy surface, independent of what the model does or does not extract.
+    - **No active incident or emergency-response scenes.** A real crash or a real police response
+      carries subject-privacy, sensitivity, and implied-endorsement exposure. If any detection
+      depiction requires one (CH3 is the only chapter that depicts detection at all), use a licensed
+      or staged frame with releases. Note: "Phase 1" elsewhere in Coasta's strategy documents means
+      police-vehicle detection, and is unrelated to this plan's Phase 1, which is scaffold.
+    - No agency markings positioned so as to imply that agency endorses Coasta.
+0.5 Target 8 to 12 frames across varied roads and times of day, subject to 0.2 through 0.4.
+0.6 **Stated fallback if no source clears 0.3:** paid licensed stock only. Under no circumstance
+    substitute generated imagery; the world's honesty depends on real frames.
+0.7 Visible credit line per frame (source + permission basis), in the diegetic mono style so
+    attribution reads as part of the world rather than as legal furniture.
 
-## Risks / open questions
+### Phase 1, scaffold
 
-- Plus Jakarta Sans at large sizes has a distinct personality; if the CEO wants
-  even plainer, weight/size tuning is the lever (not a font swap).
-- The camera-spotlight hit-test must not fight the replay's active-camera
-  highlight; spotlight visuals are additive (outline + card), never recolor the
-  replay state.
-- Light-theme canvas anti-aliasing can make 1px strokes look faint on non-retina
-  screens; stroke widths may need +0.25px tuning at DPR 1 during the visual pass.
-- theme-color/meta and any OS-level dark-mode interaction: the site is a single
-  light theme; `color-scheme: light` is set explicitly so form controls match.
+1.1 New Next 15 app in place: React 19, TypeScript, Tailwind 4, vitest. Preserve `.git`, `docs/`,
+    and `public/brand/` (the real Coasta mark). Everything else under `app/`, `components/`, `lib/`,
+    `tests/`, `public/` is deleted and rewritten.
+1.2 **Verify production state before assuming anything is safe to rebuild.** The absence of `.env*`
+    locally proves only that no local env file exists; it does not prove Vercel never held
+    `DATABASE_URL` or that the Neon project has no rows. Check the Vercel project's environment
+    variables and the Neon project directly, and record the result. Only then treat the backend as
+    greenfield. If rows exist, export them before any migration runs.
+1.3 Rebuild the waitlist backend fresh: `POST /api/waitlist`, email + ZIP validation, honeypot field,
+    Neon insert with `ON CONFLICT (email) DO NOTHING`, and a migration script creating
+    `waitlist (id, email UNIQUE, zip, created_at)`.
+    - **Durable rate limiting**, not the per-instance `Map` the old route used: a serverless
+      deployment runs many instances, so an in-memory counter is close to no limit at all. Use a
+      TTL-backed store keyed on normalized client identity **plus** submitted email.
+    - **Do not trust raw `x-forwarded-for`.** Derive client IP only from the deployment platform's
+      trusted header, and never use IP as the sole abuse key.
+    - **Cap request body size** before parsing.
+
+### Phase 2, design system derived from the world
+
+2.1 **Palette from the monitor, not from a trend list.** Ground `#08090B`. Cold phosphor ink
+    `#E6EAEE` with a dimmed `#8A939E`. One detection red `#FF3B30` used exclusively for an active
+    detection box, never decoratively. One confirm amber `#FFB000` for confirmed state only. Content
+    plates near-white `#F4F6F8` with ink `#0B0D10`.
+2.2 **Chapter lock derived from the world, three bands.** The wall of monitors is dark; the printout
+    is light. CH1/CH2/CH5 run dark stage, CH3/CH4/CH6 run light plates. Each band clears the 1.5
+    viewport minimum. Boundary device: a horizontal scan wipe, the world's own transition.
+2.3 **Type is mono-forward as brand voice.** Display: a tight grotesque at large scale
+    (clamp 3rem to 5.25rem, tracking -0.035em). Diegetic layer: IBM Plex Mono for timecodes, camera
+    ids, detection labels, confidence readouts, credits. Body: the grotesque at normal weight.
+2.4 Dials: WORLD 8, MOTION 8, VARIANCE 7, DENSITY 4 on the stage and 7 in the content layer.
+2.5 Overriding one default: **scroll cue in CH1**, because the hero is a full-bleed camera frame with
+    no content edge visible below the fold.
+
+### Phase 3, the six chapters
+
+- **CH1 approach.** One real camera frame, full-bleed, faint scanline drift, live-ticking timecode.
+  Headline "Every camera. / Now a sensor." at full display scale. One CTA. Source credit visible.
+  **No detection box in the hero.** A box drawn on a real vehicle beneath that headline creates the
+  net impression of captured model output, and a caption does not undo an impression the focal
+  visual creates. The hero establishes the lens; it does not depict a detection.
+- **CH2 the wall.** Many frames tile the viewport; one lights up as the others dim. Copy reads
+  "roadside cameras across DFW", not "thousands": an unsourced magnitude word is a numeric claim.
+- **CH3 the read.** Light plate, and the **only** chapter that depicts detection. Presented explicitly
+  as a diagram of the pipeline rather than as a screenshot: the frame is real, the overlay is drawn
+  in a deliberately diagrammatic style that cannot be mistaken for captured UI, and it is captioned
+  **"Concept visualization, not model output"** adjacent to the visual itself, not in a footnote.
+  Plain container, body font, high contrast, no texture behind text.
+- **CH4 the alert.** Light plate. **Default: copy plus a real camera frame, no phone depiction.**
+  Mobile app screens are out of scope for this project, so no screenshot artifact is assumed to
+  exist. A real screenshot may be substituted only if a signed, existing app-build artifact is
+  supplied. A div-built phone is never acceptable (hard ban 2).
+- **CH5 coverage.** Dark. Camera frames resolve outward into DFW: cameras as points on real road
+  geometry, freshly derived from a live Overpass/OSM query with the snapshot pinned and committed,
+  ODbL credit in the footer. Interaction: hover or keyboard focus surfaces a camera's road ref.
+  **Fallback if the Overpass query rate-limits or returns degraded geometry:** ship CH5 as a static
+  pinned snapshot captured in a single successful query, treated as a build artifact.
+- **CH6 ground level.** Light plate. FAQ and waitlist form, density 7, high contrast, the primary CTA
+  label repeated exactly as it appears in CH1 and the nav.
+
+### Phase 4, motion, a11y, performance
+
+4.1 Ambient life: scanline drift, timecode tick, a slow monitor-wall shimmer. Budgeted, not infinite
+    heavy rAF; pause offscreen via IntersectionObserver.
+4.2 `prefers-reduced-motion` shows the **assembled end state** of every scene: boxes already drawn,
+    timecode static, no blank frames. Required by MOTION > 3.
+4.3 Performance budget, required by WORLD > 6. The naive version of this plan does not survive
+    arithmetic: the existing `public/cam-frame.jpg` is 336KB, so 8 to 12 comparable stills exceed a
+    1.6MB total before the hero, logo, and fonts are counted. The budget is therefore per-section and
+    mechanically enforced, not a single aspirational number.
+    - LCP under 2.5s on mobile, CLS under 0.05.
+    - **Per-section byte budgets**, summing to under 1.6MB total: CH1 hero 250KB, CH2 wall 500KB
+      across all tiles, CH3 to CH6 200KB each.
+    - **AVIF with WebP fallback**, generated at build time. **Camera** source JPEGs never ship. The
+      preserved brand asset `public/brand/coasta-logo.jpg` is in scope for the same conversion.
+    - Responsive `sizes` on every image; CH2's tiles served at tile resolution, never full-size
+      downscaled in the browser.
+    - **Maximum 2 images in the initial viewport.** CH2's wall lazy-loads below the fold.
+    - **CI fails the build when a budget is exceeded.** A budget nothing enforces is a wish.
+4.4 Full keyboard path through every interactive camera, 44px minimum hit targets, visible focus
+    rings, `min-h-[100dvh]` never `h-screen`.
+4.5 `next.config.ts` image policy: **locally captured and optimized assets only.** No
+    `images.remotePatterns`, no agency-hosted endpoints at runtime. Hotlinking a live ITS endpoint
+    would be both a licensing exposure and an availability dependency on someone else's uptime.
+
+### Phase 5, verification
+
+5.1 Unit tests for validation, geometry projection, and detection-label placement.
+5.2 Interaction tests for the CH5 camera focus/hover/escape model.
+5.3 **Accessibility and motion testing, not just unit tests.** Playwright + axe scenarios at both
+    mobile and desktop viewports covering: full keyboard traversal of every interactive camera, the
+    `prefers-reduced-motion` path rendering assembled end-states, focus visibility, and the accessible
+    name of every image and control. A photo-heavy animated page fails accessibility in ways vitest
+    cannot observe.
+5.4 Proof command run by Claude, not asserted from a subagent's claim: `npm run build && npm test`,
+    plus Playwright/axe, plus Lighthouse mobile against the budget in 4.3.
+    **Lighthouse must run against a production build**, not `next dev`, and per the box's known
+    LH11 trap, check `largest-contentful-paint-element` for `score:null` before trusting a simulated
+    LCP regression.
+5.5 Copy pre-flight: mechanical scan for em dashes and en dashes in all user-visible strings (hard
+    ban 6), and a scan for any unlabelled numeric claim including magnitude words like "thousands"
+    (hard ban 3).
+5.6 **Minimal observability**, scoped to what a waitlist site actually needs and no further: waitlist
+    submit success/failure counts, API 4xx/5xx and rate-limit events, and image load failures. No
+    third-party analytics, no per-user tracking, and a documented retention window. Deliberately not a
+    full analytics stack; the site collects one email and one ZIP.
+
+## Key decisions and tradeoffs
+
+| Decision | Chosen | Rejected, and why |
+|---|---|---|
+| World | The camera's own eye | Night highway (expected for a traffic product, so generic by default), sensor grid (nearest neighbour to generic tech-blue), dispatch console (skeuomorphism reads as costume), road atlas (paper is static, the promise is real-time) |
+| Detection imagery | **No boxes in CH1.** Depiction confined to CH3, drawn diagrammatically, captioned "Concept visualization, not model output" adjacent to the visual | Boxes in the hero (net impression of captured output, which a caption cannot undo), generated frames (fabricates road and detection both), real model output (no shipped detector to draw from), no depiction anywhere (gives up the idea that makes this world Coasta's) |
+| Frame sourcing | Default-deny. Written agency permission, or reusable-terms photo-library assets, or paid licensed stock | Live ITS still endpoints absent written permission: TxDOT publishes these for real-time monitoring and states feeds are not recorded |
+| Audience | DFW consumer waitlist only | Enterprise band, enterprise-primary, multi-page. Revenue is enterprise, but the site stays one focused story and enterprise sales run through direct outreach |
+| Headline | "Every camera. / Now a sensor." | The overview's 47-character version, which cannot hold display scale over a full-bleed frame without wrapping to four lines |
+| Rebuild scope | Literally everything, new Next app | Keeping the working backend. Josh's explicit call; cost is real but small, since the API is one route and the schema is six lines |
+| Chapter theming | Dark stage, light content plates | A single flat theme. The world genuinely has two surfaces, the monitor and the printout, so the lock is derived rather than imposed |
+
+## Risks and open questions
+
+1. **The privacy claim contradicts the strategy document, and the site's own assets widen the gap.**
+   The FAQ asserts "We do not store faces, plates, or personal location history." The product overview
+   describes a Continuous Learning System retaining labelled examples from every analyzed frame and
+   names that corpus as the company's primary moat. Worse, the marketing frames this plan ships are
+   themselves raw roadway imagery that can contain legible plates and identifiable faces, so the claim
+   can be falsified by the page making it. Three requirements follow:
+   - Phase 0.4 screening (blur or reject legible plates and faces) is mandatory, not advisory.
+   - **Privacy copy is implemented last**, and is the final thing written into the build. Everything
+     else may proceed; this specific copy is gated on a signed retention policy answering what "store"
+     means, whether raw frames persist, and whether plates and faces are redacted before persistence.
+   - Copy then narrows to the provable claim rather than the broad one.
+   Josh's explicit direction is to carry the existing wording forward. That decision stands and is
+   recorded here rather than silently reversed, but it is gated as above rather than shipped as-is.
+2. **Public DOT camera reuse is probably not permitted.** TxDOT publishes live cameras for real-time
+   monitoring and states feeds are not recorded; the photo library's reuse terms cover photo-library
+   assets, not live ITS stills. Phase 0 now defaults to deny. Realistic outcome: paid licensed stock.
+   Budget for that rather than discovering it late.
+3. **A drawn detection box can misrepresent product capability regardless of labelling.** Net
+   impression is what governs, not the caption. Mitigated by removing boxes from the CH1 hero entirely
+   and confining depiction to CH3 in an overtly diagrammatic style with adjacent "Concept
+   visualization, not model output". If review still finds this insufficient, CH3 degrades to
+   no-boxes and the pipeline is carried by copy alone.
+4. **ODbL share-alike on the derived DFW geometry is an open legal gate, not a build detail.** It is
+   already flagged unresolved in `data/PROVENANCE.md`. Either publish the derived geometry and its
+   provenance under ODbL, or drop OSM-derived geometry from CH5 before launch. A pinned snapshot
+   addresses availability, not licensing.
+5. **Low-resolution frames may read as low quality rather than as intentional.** The aesthetic depends
+   on the viewer parsing 640x480 as authenticity. Mitigation: frame them deliberately in diegetic
+   chrome so the low fidelity is obviously the point. This is the main *aesthetic* risk in the plan
+   and it has no mechanical check; it is judged by eye at the tweak-bar stage.
+6. **Residual image-weight risk.** The budget in 4.3 is now per-section and CI-enforced, so this can
+   no longer fail silently. What remains is a design consequence rather than an unresolved risk: if
+   CH2's wall cannot fit 500KB at acceptable quality, the wall loses tiles. Accept fewer, better
+   frames over more, worse ones.
+7. **The overview's confidence figures (96%, 95/70/40) are illustrative examples, not measured
+   results.** They must not ship as if measured. Hard ban 3.
+8. Open: `~/.claude/design-library/` does not exist, so divergence was seeded by named references
+   rather than by Josh's saved taste entries.
 
 ## Out of scope
 
-- Backend/waitlist/API logic, database, launch-checklist infra items.
-- Geometry data, extraction pipeline, replay engine logic (visual consumers only).
-- New sections, copy rewrites beyond treatment-driven edits, routing, nav items.
-- Dark-mode variant of Clearsky (single light theme only).
-- Map pan/zoom or any interactivity beyond the camera spotlight.
+- Enterprise dashboard, analytics platform, and API surfaces. Context only, not content.
+- Any production deployment. The launch checklist gate ("no production deploy until Coasta's backend
+  is done") stands.
+- Real model integration or live camera ingestion.
+- Mobile app screens.
+- SEO migration concerns: this is a pre-launch site with no ranking to protect, so slug changes are
+  unconstrained. Nav labels, form field names, and the logo carry forward unchanged.
+  **Legal copy carries forward unchanged with one carve-out: privacy and data-retention claims are
+  explicitly excluded from that carry-forward** and are governed by the Risk 1 gate instead. Without
+  this carve-out the two clauses conflict and an implementer could ship the unverified privacy
+  wording under the "unchanged legal copy" rule.

@@ -1,125 +1,254 @@
-# Plan Review Log: Clearsky redesign (light blue/white professional re-theme)
-Act 1 (grill) complete — plan locked with Josh (CEO direction: blue/white,
-professionalism first, calm gradients, new font, keep dynamism). MAX_ROUNDS=5.
-Prior feature's full log (map overhaul, 7 rounds + build) is preserved in git
-history at commit 7cfcc65.
+# Plan Review Log: Coasta site full redesign, "the camera's own eye"
 
-## Round 1 — Codex
-Material problems remain:
+Started 2026-07-26. Previous logs for the Night Watch and Clearsky builds are archived at
+`docs/archive/PLAN-REVIEW-LOG-clearsky-2026-07-23.md`.
 
-- **No design-system artifact:** the “locked” system exists only inside [PLAN.md](/C:/Users/josha/OneDrive/Documents/coasta-site/PLAN.md:17), while the repository has no `DESIGN.md`. Fix: make creating `DESIGN.md` with tokens, primitives, states, motion, and accessibility constraints the first task.
-- **Token migration is not decision-complete:** the current seven-token model in [globals.css](/C:/Users/josha/OneDrive/Documents/coasta-site/app/globals.css:3) cannot represent ground, panel, two road classes, water, labels, ink, and status colors without ambiguous reuse. Fix: add an explicit old-token-to-new-semantic-token/consumer migration table.
-- **The retirement check can miss actual legacy colors:** the planned uppercase grep will not necessarily catch current lowercase `#0a0c0f` literals in [globals.css](/C:/Users/josha/OneDrive/Documents/coasta-site/app/globals.css:4) and [Nav.tsx](/C:/Users/josha/OneDrive/Documents/coasta-site/components/Nav.tsx:3). Fix: use case-insensitive scans covering raw colors, retired token names, arbitrary Tailwind colors, and semantic misuse.
-- **The canvas palette cannot be implemented by simple substitution:** one `STEEL` constant currently colors grid, water, every road class, labels, inactive cameras, and traffic dots in [MapCanvas.tsx](/C:/Users/josha/OneDrive/Documents/coasta-site/components/MapCanvas.tsx:7). Fix: introduce distinct typed canvas roles and test each draw layer.
-- **Shared-canvas backgrounds are unresolved:** an opaque panel fill works for Coverage and PhonePreview but hides the Hero’s CSS gradient; a transparent canvas does the reverse. Fix: add an explicit `transparent | panel` background variant, with Hero using the gradient and embedded canvases using panel fill.
-- **The contrast claim is already false:** `#D64545` is only 4.38:1 on white and 3.54:1 on the waitlist tint; `#7A8BA6` map labels are 3.28:1 on the panel, and lesser roads are 1.96:1. Fix: use an accessible red such as `#B93535`, secondary ink for small labels, and road colors meeting the required 3:1 graphical contrast.
-- **Red semantics contradict themselves:** [PLAN.md](/C:/Users/josha/OneDrive/Documents/coasta-site/PLAN.md:21) reserves red for confirmed incidents, but later assigns it to form errors, while [Catches.tsx](/C:/Users/josha/OneDrive/Documents/coasta-site/components/Catches.tsx:3) still uses `text-alert` categorically. Fix: separate `confirmed` and `error` tokens and explicitly migrate every `text-alert` consumer.
-- **The font migration misses its largest coupling:** the entire body is currently IBM Plex Mono in [layout.tsx](/C:/Users/josha/OneDrive/Documents/coasta-site/app/layout.tsx:32), so switching it to sans makes every existing camera ID, SIM chip, confidence value, ticker, and tile ID sans unless each is retagged. Fix: inventory every data surface, add `font-mono` explicitly, and configure Plus Jakarta with swap/fallback/CLS-safe metrics.
-- **“No logic changed; add no tests” is false:** hit-testing, nearest-route lookup, touch toggling, selection precedence, and dismissal are all new logic despite [PLAN.md](/C:/Users/josha/OneDrive/Documents/coasta-site/PLAN.md:109). Fix: add pure unit tests for coordinate conversion, nearest-camera selection, route lookup, ties, resize behavior, and toggle/dismiss state.
-- **The callback contract is underspecified and invalid as written:** `cam | null` has no declared type, `x/y` have no coordinate space, and cameras contain no road field in [geometry.ts](/C:/Users/josha/OneDrive/Documents/coasta-site/lib/dfw/geometry.ts:19). Fix: define a typed event payload, deterministic multi-route formatting, and a tested camera-to-route helper.
-- **The flagship interaction is inaccessible:** the canvas remains `aria-hidden` in [MapCanvas.tsx](/C:/Users/josha/OneDrive/Documents/coasta-site/components/MapCanvas.tsx:288), and verification exercises only mouse hover. Fix: provide focusable DOM camera hotspots with focus/blur, Enter/Space, Escape, accessible names, card association, and keyboard QA.
-- **Pointer edge cases are omitted:** there is no nearest-wins rule for overlapping targets, pointer-leave/cancel cleanup, outside-tap dismissal, scroll-versus-tap handling, viewport-edge card flipping, or protection from React updates on every pointer move. Fix: specify the complete pointer state machine, clamp/flip placement, and throttle position updates with `requestAnimationFrame`.
-- **Reduced motion breaks spotlight repainting:** paused canvases draw once and stop at [MapCanvas.tsx](/C:/Users/josha/OneDrive/Documents/coasta-site/components/MapCanvas.tsx:273), so a static spotlight ring will not appear unless selection explicitly redraws. Fix: redraw on spotlight changes even when the replay animation is paused.
-- **Scroll reveals can break Pipeline and inflate hydration:** wrapping the sticky 300vh Pipeline ancestor in a transformed motion element can disrupt sticky behavior, while converting server sections wholesale adds unnecessary client JavaScript. Fix: create a client-leaf `Reveal` primitive and exempt Pipeline’s sticky ancestor, revealing only safe descendants.
-- **The honesty rules contradict current and planned copy:** the plan bans live claims but says “live confirmed states,” “monitoring,” and preserves “Live hazard map of DFW” in [PhonePreview.tsx](/C:/Users/josha/OneDrive/Documents/coasta-site/components/PhonePreview.tsx:22). Fix: change all such language to “simulated,” “demo,” or clearly future-tense wording.
-- **The new image still lacks layout and delivery requirements:** [Pipeline.tsx](/C:/Users/josha/OneDrive/Documents/coasta-site/components/Pipeline.tsx:22) uses an unsized raw `<img>`, undermining the CLS and performance budget. Fix: require `next/image` or explicit `width`, `height`, `sizes`, aspect ratio, optimized format, and verified overlay anchors.
-- **The uppercase rule has unresolved exceptions:** “uppercase only for mono data chips” conflicts with the retained uppercase COASTA wordmark and existing uppercase coverage statuses. Fix: enumerate allowed brand/acronym/status exceptions and add a class-plus-visible-copy audit.
+## Resolved caps
 
-VERDICT: REVISE
-### Claude's response (Round 1)
-Accepted 16 of 17 fully, 1 partially:
-1 (DESIGN.md artifact) ACCEPTED - docs/DESIGN.md is now step 0.
-2 (token migration table) ACCEPTED - explicit old->new->consumers table added.
-3 (case-insensitive retirement scan) ACCEPTED - covers raw colors any case, retired token names, arbitrary Tailwind colors, Archivo.
-4 (typed canvas roles) ACCEPTED - MAP_COLORS role palette replaces the single STEEL constant.
-5 (canvas background variant) ACCEPTED - optional background prop: Hero transparent over CSS gradient, embedded consumers panel.
-6 (contrast math) MOSTLY ACCEPTED - red -> #B93535 (>=4.5:1 on white and tint); canvas labels -> secondary ink; road tones deepened (#5A7FBC/#8AA6CE) for legibility. PARTIAL on the 3:1 graphical rule for roads: the map is a decorative aria-hidden layer, so 3:1 is treated as a visual-quality target, not a hard gate.
-7 (red semantics split) ACCEPTED - --color-confirmed and --color-error tokens; every text-alert consumer enumerated and migrated.
-8 (body-mono coupling) ACCEPTED - full mono-surface inventory added; Plus Jakarta with swap + adjustFontFallback.
-9 (new logic needs tests) ACCEPTED - plan now adds unit tests for all new pure helpers; "no new tests" claim deleted.
-10 (callback contract) ACCEPTED - typed CameraSpotlight payload, canvas-local CSS px, tested nearestRouteRef helper (cameras have no road field).
-11 (a11y hotspots) ACCEPTED - focusable DOM hotspot buttons with names/Enter/Space/Escape/describedby; canvas stays aria-hidden.
-12 (pointer state machine) ACCEPTED - full spec: rAF throttle, nearest-wins, leave/cancel cleanup, outside-tap+Escape dismiss, clamp/flip placement helper.
-13 (paused spotlight redraw) ACCEPTED - one-shot redraw on selection change when paused.
-14 (Reveal primitive vs sticky) ACCEPTED - client-leaf Reveal, Pipeline sticky ancestor exempt, no wholesale client conversion.
-15 (copy honesty) ACCEPTED - "Live hazard map" rephrased, spotlight status "Simulated feed", "live"-grep added to verification.
-16 (next/image delivery) ACCEPTED - explicit dimensions/sizes/aspect reservation, lazy below fold.
-17 (uppercase exceptions) ACCEPTED - enumerated list + class/copy audit.
+| Var | Value |
+|-----|-------|
+| `MAX_ROUNDS` | 5 |
+| `MAX_ATTEMPTS` | 8 |
+| `PLAN_FILE` | `C:\Users\josha\OneDrive\Documents\coasta-site\PLAN.md` |
+| `LOG_FILE` | `C:\Users\josha\OneDrive\Documents\coasta-site\PLAN-REVIEW-LOG.md` |
+| `reviewer` | auto-selected, see Round 1 header |
 
-## Round 2 — Codex
-Most Round 1 findings are now addressed, including the road-contrast exception with a defensible decorative-layer rationale. Material gaps remain:
+## Act 1 summary, the grill
 
-- **Spotlight state has no single owner:** `onCameraSpotlight` only emits state, while keyboard focus lives in Hero, so keyboard selection cannot reliably trigger the canvas redraw promised later. Fix: Hero owns `spotlightCameraId` and passes it back through a controlled MapCanvas prop used by every draw path. [PLAN.md](/C:/Users/josha/OneDrive/Documents/coasta-site/PLAN.md:110)
-- **DOM hotspots conflict with canvas pointer handling:** pointer-enabled buttons positioned over camera nodes will intercept the canvas `pointermove`; disabling pointer events would break tap support. Fix: route hover, tap, focus, and keyboard requests through the hotspot layer and use MapCanvas only as a controlled renderer.
-- **Hotspot positioning lacks a resize/visibility contract:** Hero has no access to MapCanvas’s internal dimensions, and portrait projection crops Fort Worth cameras offscreen while the plan still creates all 12 focusable buttons. Fix: share ResizeObserver-derived canvas bounds, recompute positions on resize, and remove offscreen hotspots from tab order or expose them through a separate accessible list. [geometry.ts](/C:/Users/josha/OneDrive/Documents/coasta-site/lib/dfw/geometry.ts:41)
-- **The canvas palette omits required roles:** `MAP_COLORS` has neither the `panel` fill required by the background variant nor a distinct additive spotlight color. Fix: add `panel` and `spotlight` roles or explicitly assign those responsibilities to CSS tokens. [PLAN.md](/C:/Users/josha/OneDrive/Documents/coasta-site/PLAN.md:97)
-- **The red and honesty contradictions remain in section instructions:** the plan still says “live confirmed states” and tells Waitlist to use “confirmed red,” contradicting the copy sweep and separate error token. Fix: change these to “active simulated confirmed states” and `--color-error`. [PLAN.md](/C:/Users/josha/OneDrive/Documents/coasta-site/PLAN.md:149)
-- **Two stale tradeoff statements contradict the revised implementation:** “logic…preserved/tests untouched” conflicts with the new interaction logic/tests, and “uppercase…except mono data chips” omits the wordmark exception. Fix: align both summaries with the detailed rules so implementers do not receive competing instructions. [PLAN.md](/C:/Users/josha/OneDrive/Documents/coasta-site/PLAN.md:201)
-- **`docs/DESIGN.md` still does not explicitly require primitive and accessibility contracts:** its listed contents cover component colors, but not `Reveal`, camera hotspots/cards, controlled spotlight state, keyboard behavior, or accepted road-contrast debt. Fix: require a primitives/states/accessibility/debt section before implementation. [PLAN.md](/C:/Users/josha/OneDrive/Documents/coasta-site/PLAN.md:85)
-- **Real interaction QA remains mouse-centric:** unit tests cannot validate pointer interception, touch scrolling, focus order, offscreen tab stops, or `aria-describedby` behavior. Fix: add browser scenarios for mouse, touch, keyboard, reduced motion, and accessibility-tree/card association at mobile and desktop widths. [PLAN.md](/C:/Users/josha/OneDrive/Documents/coasta-site/PLAN.md:176)
+The interview ran in two passes. The first pass was framed as a diff against the shipped Clearsky
+build and Josh rejected that framing outright: he had asked for a full redesign owing nothing to
+previous work, informed only by the product overview he supplied and the revamped design skills.
+Everything sourced from the old build was discarded from the interview and the tree was re-derived.
 
-VERDICT: REVISE
-### Claude's response (Round 2)
-Accepted all 8:
-1 (spotlight state owner) ACCEPTED - Hero owns spotlightCameraId; MapCanvas gains controlled spotlightId prop, pure renderer, all draw paths honor it.
-2 (hotspot/canvas pointer conflict) ACCEPTED - hotspot layer owns ALL input (hover/tap/focus/keyboard); canvas has zero spotlight pointer handling.
-3 (resize/visibility contract) ACCEPTED - Hero ResizeObserver recomputes positions; offscreen (cropped) cameras render no hotspot, out of tab order.
-4 (missing canvas roles) ACCEPTED - MAP_COLORS gains panel + spotlight roles (spotlight distinct from replay cameraActive).
-5 (residual wording contradictions) FIXED - "active simulated confirmed states"; Waitlist error uses --color-error.
-6 (stale tradeoff summaries) FIXED - tests claim and uppercase summary aligned with detailed rules.
-7 (DESIGN.md scope) ACCEPTED - primitives + accessibility architecture + accepted-debt sections required.
-8 (interaction QA beyond unit tests) ACCEPTED - browser scenario matrix (mouse/touch/keyboard/reduced-motion/a11y-tree, mobile + desktop) added to verification.
+Decisions carried out of the pre-reset pass (Josh's calls, not legacy constraints):
 
-## Round 3 — Codex
-All eight Round 2 findings are now explicitly addressed. The logged decorative-road contrast exception is also sufficiently documented. New material problems remain:
+1. **Audience.** DFW consumer waitlist only. No enterprise band, no multi-page architecture, despite
+   revenue coming from government and enterprise contracts. Enterprise sales run through outreach.
+2. **Headline.** "Every camera. / Now a sensor." over the overview's longer specified version, on the
+   grounds that 47 characters cannot hold display scale over a full-bleed frame.
+3. **Rebuild scope.** Literally everything, a new Next app. Verified against the codebase that this
+   costs almost nothing on the backend: no `.env*` files exist, `DATABASE_URL` was never configured,
+   the waitlist table was never created, so there are zero signups to orphan.
+4. **FAQ copy.** Carried forward verbatim, at Josh's explicit direction, over the recommendation to
+   verify it first. See Risk 1, which escalated after the product overview arrived.
 
-- **Spotlight state still cannot represent transient versus pinned selection.** Focus or hover sets the ID before click toggles it, so clicking an already hovered/focused hotspot immediately closes it; pointer-leave/blur can also erase a pinned selection. [PLAN.md](</C:/Users/josha/OneDrive/Documents/coasta-site/PLAN.md:116>) Fix: model separate `hoveredId`, `focusedId`, and `pinnedId` states with a derived spotlight ID.
-- **Touch can activate hover during scrolling.** `pointerenter/leave` is not gated by pointer type and `pointercancel` cleanup is absent, contradicting the “scroll does not open” test. [PLAN.md](</C:/Users/josha/OneDrive/Documents/coasta-site/PLAN.md:129>) Fix: ignore hover handlers for touch pointers and clear transient state on `pointercancel`.
-- **Keyboard activation risks double toggling.** Native buttons already dispatch `click` for Enter and Space; adding explicit key toggles can toggle twice. Fix: use the button’s native `onClick` for all activation and reserve `keydown` for Escape.
-- **Hotspot visibility ignores Hero occlusion.** Filtering only by canvas bounds leaves focusable/clickable cameras behind the nav, alert card, headline, and CTA overlays, particularly near the bottom on narrow screens. [Hero.tsx](</C:/Users/josha/OneDrive/Documents/coasta-site/components/Hero.tsx:39>) Fix: define an unobstructed interaction region or exclude hotspots intersecting overlay rectangles.
-- **Hotspot accessibility geometry is unspecified.** The plan gives no minimum target size or visible focus indicator; matching the 2.5px canvas node would be unusable and fail WCAG target-size requirements. [PLAN.md](</C:/Users/josha/OneDrive/Documents/coasta-site/PLAN.md:129>) Fix: require centered targets of at least 24×24 CSS pixels, preferably 44×44, with an explicit high-contrast `focus-visible` ring.
-- **Idle camera contrast fails once the nodes become interactive cues.** Keeping the existing 0.35–0.55 breathing opacity makes deep blue `#123C8C` only 1.92:1 at minimum opacity against the panel, below the 3:1 non-text threshold. [MapCanvas.tsx](</C:/Users/josha/OneDrive/Documents/coasta-site/components/MapCanvas.tsx:175>) Fix: keep the solid node at ≥3:1 and animate a surrounding halo or radius instead of reducing node opacity.
-- **Placeholder text remains a concrete contrast failure.** Migrating `placeholder:text-fog-dim/50` to `#4A5A73` at 50% over white produces roughly 2.26:1 despite the plan requiring all text pairs to pass AA. [Waitlist.tsx](</C:/Users/josha/OneDrive/Documents/coasta-site/components/Waitlist.tsx:59>) Fix: use full-opacity secondary ink or a dedicated placeholder token measuring at least 4.5:1.
-- **Token retirement remains incomplete.** `--color-steel` is absent from the migration table, while the verification scan omits surviving `surface`, `alert`, and `steel` class names plus numerous `border-white/*` and white inset-shadow treatments that disappear on light surfaces. [PLAN.md](</C:/Users/josha/OneDrive/Documents/coasta-site/PLAN.md:198>) Fix: explicitly retire every old token/class and introduce scanned semantic border/elevation tokens.
-- **The canvas palette controls colors but not the dark-theme paint parameters.** Existing grid and water alphas are 0.05 and 0.08, making the proposed light-blue layers effectively invisible on `#F7F9FC`, despite the claim that each layer is independently tunable. [MapCanvas.tsx](</C:/Users/josha/OneDrive/Documents/coasta-site/components/MapCanvas.tsx:101>) Fix: specify complete per-role paint definitions including color, opacity, and stroke width.
-- **The test contract contradicts the DOM architecture.** Native hotspot buttons perform browser hit-testing, yet the plan still requires a pure nearest-camera hit-test and tie-break test that no described runtime path uses. [PLAN.md](</C:/Users/josha/OneDrive/Documents/coasta-site/PLAN.md:143>) Fix: either remove that obsolete logic/test or define an actual shared hit-test arbiter used by the hotspot layer.
-- **The font-variable migration is not decision-complete.** Removing Archivo leaves the current `--font-display: var(--font-archivo)` and `.font-display` coupling unresolved, while merely adding a Next font variable does not make Tailwind’s `font-sans` use it. [globals.css](</C:/Users/josha/OneDrive/Documents/coasta-site/app/globals.css:11>) Fix: explicitly map both `--font-sans` and `--font-display` to the Plus Jakarta variable and set the body to `font-sans`.
+Decisions from the post-reset pass:
 
-VERDICT: REVISE
-### Claude's response (Round 3)
-Accepted all 11:
-1 (transient vs pinned) ACCEPTED - hoveredId/focusedId/pinnedId with derived spotlight; pinned survives leave/blur.
-2 (touch hover leak) ACCEPTED - hover only for mouse-type pointers; pointercancel clears transient.
-3 (double toggle) ACCEPTED - native onClick is sole activation; keydown = Escape only.
-4 (overlay occlusion) ACCEPTED - hotspots intersecting nav/alert-card/headline/CTA rects excluded, recomputed on resize.
-5 (target size/focus ring) ACCEPTED - >=44x44 targets, 2px blue focus-visible ring.
-6 (idle node contrast) ACCEPTED - solid node >=3:1; breathing moved to halo, never node opacity.
-7 (placeholder contrast) ACCEPTED - dedicated full-opacity placeholder token.
-8 (token retirement completeness) ACCEPTED - steel retired; border/elevation/placeholder tokens added; scan covers alert/surface/steel/asphalt/fog/border-white/inset-shadows.
-9 (per-role paint definitions) ACCEPTED - complete {color, alpha, width} spec per role; dark-theme alphas explicitly not carried over.
-10 (obsolete hit-test test) ACCEPTED - removed; reducer/nearestRouteRef/placeCard tests remain.
-11 (font variable wiring) ACCEPTED - Jakarta maps to --font-sans AND --font-display; Archivo variable deleted; body font-sans.
+5. **World.** Diverged across five directions (night highway, the camera's own eye, dispatch console,
+   sensor grid, road atlas), dropped the road atlas on the grounds that a static medium argues against
+   a real-time promise, and converged on **the camera's own eye**. Chosen because the medium is the
+   product: there is no invented place to assert and no gap between what the page shows and what
+   Coasta does.
+6. **Detection imagery.** Real public DOT camera frames with detection boxes drawn but persistently
+   labelled illustrative, plus visible per-frame credit. Rejected generated frames (fabricates road
+   and detection), real model output (no shipped detector), and no-boxes (gives up the idea).
 
-## Round 4 — HALTED: Codex usage limit exhausted (resets 2026-07-30). Rounds completed: 3; findings raised: 36; all 36 accepted and incorporated (1 partial: decorative road contrast logged as accepted debt). Zero contested findings. Trajectory convergent (R3 was refinement-grade). Handed to Josh for resolution.
+What the grill changed versus the opening brief:
 
-## Panel Round 1 — fresh-context 2-lens review (Codex quota exhausted; lens diversity substitutes for model diversity)
-### Lens A: architecture/implementability — VERDICT: REVISE, 8 findings + nits
-Material: (1) Step 6 demanded the hit-test unit test Step 3 explicitly killed; (2) alert-card occlusion rect unmeasurable as specced (AlertCard returns null between replay events -> slot measures 0x0 at resize; fix = fixed reserved rect). Others: -white/ scan gap beyond border-white; stale "same breathing" sentence vs halo rule; "Route monitoring" copy escaped the honesty sweep + grep; uppercase rule silent on detection-state labels; consumer lists overstated as decision-complete; nearestRouteRef null fallback unspecified; nits (grain either/or, theme-color meta does not exist yet, 42-count wording, vacuous text-alert scan qualifier). Also independently verified: suite 42/42, no hotspot pair within 44px at any breakpoint.
-### Lens B: design/a11y/credibility — VERDICT: REVISE, 9 findings
-Material: (1) signal hierarchy INVERTED on light map (idle nodes #123C8C 9.7:1 louder than detect ring 5.6:1, same hue family as roads; cameraActive had NO paint definition and would collide with spotlight) - fix: idle at the 3:1 floor, white casings + top visual weight for event markers, explicit cameraActive, spotlight as double outline ring; (2) Waitlist input borders ink@10% = 1.23:1 (invisible field boundaries on the conversion form, WCAG 1.4.11) - fix: --color-input-border #4A5A73. Others: disabled:opacity-60 button ~2.7:1 escaping all scans (fix: solid disabled tokens + DESIGN.md states); Pipeline photo would inherit the dark hue-rotate/opacity filter stack (fix: delete, light treatment specced); decoration-white/20 + bg-white/5 scan escapes; kicker treatment undefined post-uppercase-purge (fix: sentence case, normal tracking, font-medium blue); type scale locked in-plan (h2/h3/body/weights) + font-stretch deletion made explicit; hero gradient 1.09:1 imperceptible (fix: #DDEBFC deep stop + enumerated bands + sRGB QA check); hotspot group semantics + DOM order after CTA. Verified good: no banned AI-default patterns survive; core text pairs pass as claimed.
-### Claude's response (Panel Round 1)
-All 17 findings + nits ACCEPTED and incorporated into PLAN.md rev 4. Notable merges: reserved occlusion rect; signal-hierarchy rule with complete cameraActive/spotlight paint definitions; input-border + disabled-state tokens; Pipeline filter-stack deletion; -white/ broad scan term; enumerated gradient bands; locked type scale; kicker re-spec; detection labels to sentence case; monitoring added to copy sweep.
+- Surfaced that the FAQ privacy claim is in direct tension with the overview's own data-moat
+  strategy, escalating it from "unverified" to "contradicted by internal strategy" and making CEO
+  sign-off a blocking pre-launch gate.
+- Killed a phantom risk by reading the codebase instead of asking: the waitlist DB never went live.
+- Forced the honesty question that the world choice created (what is the provenance of anything that
+  looks like model output) before it could be papered over in the build.
 
-## Panel Round 2 — architecture lens delta re-check — VERDICT: REVISE (2 findings, both introduced by the Round 1 merge)
-1 (MEDIUM) Step 6 scan list not synced with the token section's revised spec (two conflicting scan definitions; executable checklist was the weaker one). FIXED - Step 6 now defers to the token section as the single authoritative term list, zero text-alert survivors.
-2 (LOW-MED) cameraIdle #5A7FBC repainted to the exact roadInterstate color while nodes sit ON interstates (~1:1 vs actual ground). FIXED - thin 1px white casing ring on idle nodes; size + hue keep them quieter than event markers.
-Nit: #DDEBFC added to the palette inventory line. All 17 Round-1 fixes verified present by the reviewer, including recomputed disabled-state contrast (~5.7:1 passes).
+## Rounds
 
-## Resolution
-Panel cap (2 rounds) reached at REVISE-in-letter, converged-in-substance: both Round-2 findings were one-line edits, applied immediately; zero contested findings across the entire chain (Codex rounds 1-3: 36 findings; fresh-eyes panel rounds 1-2: 19 findings; 55/55 accepted). PLAN.md rev 5 handed to Josh for final sign-off (incl. explicit confirmation of the categorical-red retirement, which reverses his Night Watch-era decision).
+## Round 1 — codex
 
-## Act 3 — Build (Claude builds after Codex quota exhaustion)
-Commits: d16a704 (tokens/typography + DESIGN.md), 9912832 (light atlas + spotlight renderer), 5664756 (section re-themes + interaction + 21 new tests), c7999f2 (headline break), a218970 (final-review polish), f2e553c (trust package: how-it-works, trust band, FAQ, nav anchors, reassurance line, real footer - CEO professionalism feedback), 08d1b38 (brand logo integration: nav/footer marks, favicon, og image; wordmark to lowercase per logo).
-### Final whole-branch review (fable): "Ready with fixes" - 1 Important (dead shadow-card utility on the success card - @theme vs :root, invisible to every scan) + minors (occlusion rect md offset, ring casing fade, Waitlist H2 scale deviation, double SIM chip). All fixed in a218970; backlog items (Reveal SSR opacity, DESIGN.md stale status paragraphs, card-height estimate) logged here.
-### Verification (controller-run): 63/63 tests; clean build; retirement/dash/copy scans clean; keyboard spotlight verified; visual walkthrough all sections; Lighthouse pre-trust-package median LCP 1718ms / CLS 0.0000; final post-trust-package Lighthouse 3-run recorded below at gate time. Open items to the human gate: cam-frame.jpg placeholder (image generation blocked: Codex quota until Jul 30 / Higgsfield unauthenticated), FAQ/trust copy drafted from safe assumptions pending Josh's corrections, live-window hover/touch QA partially done (replay + spotlight observed live; systematic touch pass pending).
-### Gate-time Lighthouse (final build, quiet conditions): runs 1820/3942/1752 ms LCP, CLS 0.0000 all runs; median 1820 ms PASSES the <=2500 budget. Sporadic 3-4s outliers attributed to local machine contention (accumulated Chrome instances, OneDrive sync) - not reproducible in consecutive runs; re-measure on production hosting before launch (launch checklist).
+- **model:** gpt-5.5, reasoning effort high
+- **cli:** codex-cli/0.145.0
+- **session:** 019fa1d8-420a-7c83-b9fe-a8107afe1e13
+- **sandbox:** `-s read-only`, canary confirmed inside the target repo before launch. The canary
+  produced structured policy-denial evidence (`Rejected("... blocked by policy")` on a PowerShell
+  `Set-Content` attempt) with `git status --porcelain` byte-identical before and after. Note: the
+  0.145.0 release was missing `codex-command-runner.exe` and `codex-windows-sandbox-setup.exe` from
+  `bin/`; both were copied from `codex-resources/` before the run, per the known post-update trap.
+- **verdict:** REVISE, 15 findings
+
+### Critique (verbatim)
+
+1. Phase 0 assumes public DFW cameras are reusable if terms allow, but TxDOT publishes live cameras
+   for real-time monitoring and states feeds are not recorded, while photo-library reuse terms cover
+   photo-library assets, not live ITS stills. Fix: treat silence or ambiguity as prohibited; use only
+   written permission, photo-library/public-gallery assets, or paid licensed stock.
+2. TxDOT, DalTrans/Dallas County and Fort Worth are listed as source classes without proving
+   ownership, endpoint authority, or sublicensing rights. Fix: require source-owner identity,
+   endpoint URL, permission basis, capture method, and reviewer sign-off per frame.
+3. A detection box drawn on a real vehicle under "Every camera. Now a sensor." likely implies actual
+   model output even with "illustrative" present. Fix: remove hero boxes or use only real output; if
+   concept art ships, label it "concept visualization, not model output" on the focal visual itself.
+   (FTC net-impression guidance.)
+4. The plan admits the privacy claim contradicts retention strategy but allows the build to proceed
+   with the claim intact. Fix: block implementation of privacy copy until a signed retention policy
+   defines whether raw frames are stored, whether plates/faces are redacted, and what "store" means.
+5. `components/Faq.tsx:18` and `components/TrustBand.tsx:10` already claim no faces, plates or
+   tracking, yet the plan's raw-frame marketing assets and described learning corpus can contain
+   plates and faces even if the model never extracts them. Fix: redact or discard raw frames before
+   persistence and narrow the copy to the provable claim.
+6. A 1.6MB total image budget alongside 8 to 12 photo frames does not survive arithmetic: the
+   existing `public/cam-frame.jpg` is already 336KB. Fix: per-section byte budgets, AVIF/WebP,
+   responsive `sizes`, a maximum initial-viewport image count, and CI/Lighthouse failure when
+   exceeded.
+7. `next.config.ts` has no image policy; agency-hosted endpoints would break `next/image` or push
+   implementers to raw `<img>`. Fix: decide captured-local-optimized-only, or declare explicit
+   `images.remotePatterns` after licensing review.
+8. "thousands of cameras operate continuously" is itself a numeric claim while the plan says it
+   asserts no count. Fix: substantiate from agency inventories or rewrite to "roadside cameras
+   across DFW".
+9. The per-instance rate limit is ineffective on multi-instance serverless and trivially bypassed.
+   Fix: durable TTL-backed limiter keyed on normalized client identity plus email; cap body size.
+10. `app/api/waitlist/route.ts:18` trusts `x-forwarded-for` with no trusted-proxy handling. Fix:
+    derive IP only from the platform's trusted header, and never use IP as the sole abuse key.
+11. "table never created" is asserted from the absence of `.env*`, which proves only that no local
+    env file exists, not that Neon or Vercel never held production data. Fix: verify Vercel env vars
+    and Neon project state before rebuilding on that assumption.
+12. A pinned Overpass snapshot is treated as an availability fallback, but ODbL publication and
+    share-alike review is a separate legal gate already open in `data/PROVENANCE.md`. Fix: publish
+    the derived geometry and provenance, or remove OSM-derived geometry before launch.
+13. Build, tests and Lighthouse are specified but no accessibility-tree, screen-reader or real-device
+    decode testing is. Fix: Playwright/axe keyboard and reduced-motion scenarios at mobile and
+    desktop, plus production Lighthouse against the deployed build.
+14. Analytics and observability are excluded on a waitlist conversion site with a backend. Fix: add
+    privacy-preserving event/error monitoring for form submit, API failures, rate limits, LCP/CLS and
+    asset load failures, with a documented retention window.
+15. Targeting an emergency-vehicle frame creates privacy, endorsement and sensitivity exposure from a
+    real incident scene. Fix: avoid active incident imagery unless licensed and approved, or use a
+    staged/stock frame with releases.
+
+### Claude's response
+
+**Accepted in full (13):** 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15.
+
+- Phase 0 rewritten to **default-deny**, with a six-field per-frame licensing record and an explicit
+  order of preference that excludes live ITS endpoints absent written permission. Finding 1 is the
+  most valuable in the round: it inverts the likely answer, so the realistic outcome is now budgeted
+  as paid licensed stock rather than discovered late.
+- New Phase 0.4 content screening: reject or blur legible plates and faces, no active incident or
+  emergency-response scenes, no agency markings implying endorsement. Finding 5 is the sharpest
+  observation here, that the marketing assets are themselves a privacy surface capable of falsifying
+  the very claim the page makes.
+- **Detection boxes removed from CH1 entirely.** Depiction is confined to CH3 in an overtly
+  diagrammatic style with "Concept visualization, not model output" adjacent to the visual. Net
+  impression governs; a caption cannot undo what the focal visual asserts.
+- Performance budget replaced with per-section byte budgets summing under 1.6MB, AVIF with WebP
+  fallback, responsive `sizes`, a two-image initial-viewport cap, and CI failure on breach.
+- Backend hardened: durable TTL limiter keyed on identity plus email, trusted-proxy IP derivation
+  only, request body cap.
+- Epistemic correction accepted: greenfield status must be verified against Vercel and Neon, not
+  inferred from a missing local `.env`.
+- ODbL promoted from a build detail to Risk 4, a launch gate with two acceptable resolutions.
+- Testing expanded to Playwright/axe at two viewports plus production-build Lighthouse.
+
+**Accepted with modification (2):**
+
+- **Finding 4 (block the build on privacy policy).** Rejected as stated, accepted in substance. Josh
+  explicitly directed that the existing FAQ wording carry forward; that is his decision to make about
+  his own company's copy, and the grill records decisions rather than overriding them. The safety
+  property Codex is protecting is preserved by a narrower gate: privacy copy is the **last** thing
+  implemented and is blocked on a signed retention policy, while the rest of the build proceeds.
+  Nothing ships unsigned, and no decision is silently reversed.
+- **Finding 14 (observability).** Accepted at reduced scope. A full event/analytics stack with
+  retention windows is disproportionate for a form collecting one email and one ZIP, and bolting
+  third-party tracking onto a site whose pitch is privacy is self-defeating. Scoped to submit
+  success/failure counts, API 4xx/5xx and rate-limit events, and image load failures, with no
+  third-party analytics and a documented retention window.
+
+Revised body sha256: `3b66456df02818c6831a7699a66d25772c79103e63bb68ac94dd12545671d04d`
+
+---
+
+## Round 2 — codex
+
+- **session:** 019fa1d8-420a-7c83-b9fe-a8107afe1e13 (resumed, id echo verified)
+- **reviewed body sha256:** `3b66456df02818c6831a7699a66d25772c79103e63bb68ac94dd12545671d04d`
+- **verdict:** REVISE
+
+### Critique
+
+All 15 round-1 findings marked **ADDRESSED**, including both disputed ones. On finding 4: "I accept
+'privacy copy implemented last and gated on signed retention policy' as equivalent launch
+protection, provided no public preview ships the old wording." On finding 14: "reduced observability
+scope is reasonable for this site; no third-party analytics is defensible."
+
+Four new defects, all internal contradictions introduced by the round-1 revision:
+
+1. The "Key decisions" table still read "boxes drawn but labelled illustrative", contradicting the
+   new Phase 0 default-deny and the CH1 no-box rule. An implementer reading the table would be routed
+   straight back into the behaviour the revision exists to prevent.
+2. "Source JPEGs never ship" contradicts the deliberate preservation of `public/brand/coasta-logo.jpg`.
+3. Duplicated risk numbering (two entries numbered 4) and stale "image payload versus LCP" wording
+   left over from before the budget became enforceable.
+4. Missed in round 1: CH4 depended on "a real phone screenshot" while mobile app screens are listed
+   out of scope, so the default path assumed an artifact that does not exist.
+
+### Claude's response
+
+All four accepted; none rejected. Decision table rewritten and a new frame-sourcing row added;
+"camera source JPEGs" narrowed with the brand logo brought into conversion scope; risks renumbered
+with the stale entry rewritten as a residual design consequence; CH4 flipped so its **default** is
+copy plus a real camera frame with no phone depiction, a real screenshot permitted only against a
+signed existing artifact. Phase 4 items 4.4 and 4.5 were also found out of sequence and reordered.
+
+Revised body sha256: `c7d0f3006106cfa8974fa35981608591ec7c89700d9e7deb5706108aeb503236`
+
+---
+
+## Round 3 — codex
+
+- **session:** 019fa1d8-420a-7c83-b9fe-a8107afe1e13 (resumed, id echo verified)
+- **reviewed body sha256:** `c7d0f3006106cfa8974fa35981608591ec7c89700d9e7deb5706108aeb503236`
+- **verdict:** REVISE
+
+### Critique
+
+All four round-2 fixes confirmed "genuinely fixed, not just reworded". Three remaining
+cross-section contradictions:
+
+1. **The most consequential of the whole review.** Out-of-scope said "legal copy carries forward
+   unchanged" while Risk 1 said privacy copy is gated on a signed retention policy. If privacy FAQ
+   copy counts as legal copy, the two clauses conflict and an implementer could ship the unverified
+   privacy wording under the carry-forward rule, defeating the gate entirely.
+2. Phase 0.4 referenced "Phase 1 detection", but this plan's Phase 1 is scaffold; detection lives in
+   CH3. The collision is with Coasta's *strategy document* Phase 1 (police detection).
+3. Paid licensed stock permitted "real roadways" generally while the site presents a DFW-specific
+   world, so non-Texas stock could silently stand in for DFW coverage.
+
+### Claude's response
+
+All three accepted; none rejected. Finding 1 is the single best catch in the review: the gate built
+in round 1 had a hole in it that only appeared when two distant sections were read together, and it
+is exactly the failure mode a cross-model reader catches that an author does not. Out-of-scope now
+carries an explicit carve-out excluding privacy and data-retention claims. The Phase 1 reference now
+points at CH3 with a note disambiguating the two "Phase 1" meanings. Stock sourcing gained a location
+honesty rule: prefer DFW or Texas, and non-Texas stock must state its actual location in the credit
+and never imply DFW coverage, which extends the same logic that ruled out generated frames.
+
+Revised body sha256: `e88ee1066b59d1cdb67af99a6c9bac74a4be2b5e638fb8f0e55a63616a1aed9c`
+
+---
+
+## Round 4 — codex
+
+- **session:** 019fa1d8-420a-7c83-b9fe-a8107afe1e13 (resumed, id echo verified)
+- **reviewed body sha256:** `e88ee1066b59d1cdb67af99a6c9bac74a4be2b5e638fb8f0e55a63616a1aed9c`
+- **verdict:** **APPROVED**
+
+### Critique
+
+All three round-3 fixes verified operative rather than reworded. Verbatim conclusion:
+
+> I found no remaining internal contradiction that would route an implementer into misleading
+> model-output visuals, unlicensed live-camera reuse, false DFW imagery, or unverified privacy
+> claims. The remaining risks are named, gated, and have fallbacks. The plan is sound enough to
+> implement.
+
+### Provenance
+
+The approved body hash `e88ee106…` was verified against the plan file after the round completed and
+**matches**, so the approval binds to the final body, not to an earlier draft. Recorded as
+`status: approved-final`, `final_body_cross_model_approved: true`. Front matter is excluded from the
+hash by design, so writing this provenance block does not invalidate it.
+
+Rounds used: 4 of `MAX_ROUNDS` 5. Attempts: 4 of `MAX_ATTEMPTS` 8. Zero failed launches, zero
+degraded (same-model) rounds.
