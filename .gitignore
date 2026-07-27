@@ -7,3 +7,4 @@ tsconfig.tsbuildinfo
 test-results/
 playwright-report/
 .omo/
+.next-verify/
