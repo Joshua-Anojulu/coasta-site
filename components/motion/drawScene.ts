@@ -49,27 +49,58 @@ export function drawVehicle(
   ctx.ellipse(x, ground, halfW * 1.6, halfW * 0.4, 0, 0, Math.PI * 2)
   ctx.fill()
 
-  // Body.
-  ctx.fillStyle = `${BODY}${Math.min(1, 0.68 + fade * 0.32)})`
+  // Wheels first, so the body sits over them and only the tyre bottoms show.
+  // A car with no visible contact patch reads as a floating box no matter how
+  // good the rest of the silhouette is.
+  if (bodyH > 5) {
+    ctx.fillStyle = `rgba(6, 8, 11, ${0.9 * fade})`
+    for (const side of [-1, 1]) {
+      const wx = x + side * halfW * 0.78
+      ctx.beginPath()
+      ctx.ellipse(wx, ground, halfW * 0.2, bodyH * 0.13, 0, 0, Math.PI * 2)
+      ctx.fill()
+    }
+  }
+
+  // Body as a curved silhouette rather than a trapezoid: tapered shoulders, a
+  // rounded roof, and a slight tuck at the sills. Straight edges are what made
+  // the earlier version read as geometry instead of a vehicle.
+  const shoulderY = roofY + bodyH * 0.42
+  const sillY = ground - bodyH * 0.06
+  ctx.fillStyle = `${BODY}${Math.min(1, 0.7 + fade * 0.3)})`
   ctx.beginPath()
-  ctx.moveTo(x - halfW, ground)
-  ctx.lineTo(x + halfW, ground)
-  ctx.lineTo(x + halfW * (1 - roofInset), roofY)
-  ctx.lineTo(x - halfW * (1 - roofInset), roofY)
+  ctx.moveTo(x - halfW * 0.96, sillY)
+  ctx.lineTo(x - halfW, shoulderY + bodyH * 0.14)
+  // Shoulder into roof, both sides, with the roof crowned slightly.
+  ctx.quadraticCurveTo(x - halfW * 0.99, roofY + bodyH * 0.06, x - halfW * (1 - roofInset), roofY)
+  ctx.quadraticCurveTo(x, roofY - bodyH * 0.07, x + halfW * (1 - roofInset), roofY)
+  ctx.quadraticCurveTo(x + halfW * 0.99, roofY + bodyH * 0.06, x + halfW, shoulderY + bodyH * 0.14)
+  ctx.lineTo(x + halfW * 0.96, sillY)
+  ctx.quadraticCurveTo(x, ground + bodyH * 0.04, x - halfW * 0.96, sillY)
   ctx.closePath()
   ctx.fill()
 
-  // Rear glass: a slightly lighter band under the roof, which is the single
-  // detail that stops the silhouette reading as a plain block.
+  // Rear glass, following the same curve as the roof.
   if (kind !== "truck" && bodyH > 6) {
-    ctx.fillStyle = `rgba(48, 62, 80, ${0.5 * fade})`
+    ctx.fillStyle = `rgba(44, 58, 76, ${0.55 * fade})`
     ctx.beginPath()
-    ctx.moveTo(x - halfW * (1 - roofInset) * 0.9, roofY + bodyH * 0.1)
-    ctx.lineTo(x + halfW * (1 - roofInset) * 0.9, roofY + bodyH * 0.1)
-    ctx.lineTo(x + halfW * 0.82, roofY + bodyH * 0.44)
-    ctx.lineTo(x - halfW * 0.82, roofY + bodyH * 0.44)
+    ctx.moveTo(x - halfW * 0.78, shoulderY)
+    ctx.quadraticCurveTo(x, roofY + bodyH * 0.06, x + halfW * 0.78, shoulderY)
+    ctx.lineTo(x + halfW * 0.7, shoulderY + bodyH * 0.05)
+    ctx.quadraticCurveTo(x, shoulderY + bodyH * 0.14, x - halfW * 0.7, shoulderY + bodyH * 0.05)
     ctx.closePath()
     ctx.fill()
+  }
+
+  // Bumper line: one hairline across the lower body. Cheap, and it breaks up
+  // the mass the way a real rear end does.
+  if (bodyH > 8) {
+    ctx.strokeStyle = `rgba(120, 140, 165, ${0.18 * fade})`
+    ctx.lineWidth = Math.max(0.5, bodyH * 0.03)
+    ctx.beginPath()
+    ctx.moveTo(x - halfW * 0.9, ground - bodyH * 0.24)
+    ctx.lineTo(x + halfW * 0.9, ground - bodyH * 0.24)
+    ctx.stroke()
   }
 
   // Roof edge catching the gantry light overhead.
