@@ -198,6 +198,34 @@ picture {
   margin: 0;
 }
 
+/* Unstyled anchors would render as default blue on a near-black footer, which
+   is both off-palette and a contrast failure. */
+.site-footer a {
+  color: var(--color-phosphor);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.site-footer a:hover,
+.site-footer a:focus-visible {
+  text-decoration-thickness: 2px;
+}
+
+/* The ODbL notice carries three links and is far longer than the tagline beside
+   it, so it wraps rather than stretching its grid column. */
+.site-footer__attribution {
+  max-width: 52ch;
+  line-height: 1.65;
+  text-align: right;
+}
+
+@media (width < 720px) {
+  .site-footer__attribution {
+    max-width: none;
+    text-align: left;
+  }
+}
+
 @media (max-width: 760px) {
   .site-nav nav > a:not(.primary-action) {
     display: none;

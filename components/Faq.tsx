@@ -1,6 +1,8 @@
-export const PRIVACY_ANSWER_AWAITING_SIGN_OFF =
-  "Privacy and data-retention details will be published after Coasta's retention policy is signed."
-
+// No privacy or data-retention question is published here. The FAQ previously
+// claimed Coasta stores no faces, plates or location history, which is in
+// tension with the retention the product strategy describes, and no signed
+// retention policy exists to settle the wording. Silence is the honest state:
+// the item returns once there is a policy to quote.
 const ITEMS = [
   {
     answer:
@@ -16,10 +18,6 @@ const ITEMS = [
     answer:
       "From public traffic cameras read by our detection models. Every alert is camera-verified before it reaches you.",
     question: "Where do the alerts come from?",
-  },
-  {
-    answer: PRIVACY_ANSWER_AWAITING_SIGN_OFF,
-    question: "Is my privacy protected?",
   },
   {
     answer:

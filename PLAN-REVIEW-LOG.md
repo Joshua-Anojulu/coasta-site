@@ -252,3 +252,58 @@ hash by design, so writing this provenance block does not invalidate it.
 
 Rounds used: 4 of `MAX_ROUNDS` 5. Attempts: 4 of `MAX_ATTEMPTS` 8. Zero failed launches, zero
 degraded (same-model) rounds.
+
+---
+
+# Post-build decisions
+
+Recorded here rather than in `PLAN.md`. That file is `approved-final` and its provenance is bound to
+a body hash; editing it would silently falsify the recorded approval. The plan stays the frozen
+artifact of what was approved, and this log carries what happened afterwards.
+
+## Privacy copy removed entirely (2026-07-27)
+
+Josh's direction: remove anything privacy related for now.
+
+The FAQ item "Is my privacy protected?" and the `PRIVACY_ANSWER_AWAITING_SIGN_OFF` constant are both
+deleted. This supersedes the earlier decision to carry the FAQ forward verbatim behind a sign-off
+gate, and it is the stronger position: the original wording claimed Coasta stores no faces, plates
+or location history, which is in tension with the retention the product overview describes as the
+company's moat, and no signed retention policy exists to settle it. A gated placeholder still put a
+privacy-shaped hole on the page inviting the claim back. Silence is the honest state. The item
+returns when there is a policy to quote.
+
+Risk 1 in `PLAN.md` is therefore no longer a launch blocker for the site copy. It remains an open
+company question, not a site question.
+
+## ODbL share alike: RESOLVED, publish rather than drop (2026-07-27)
+
+Risk 4 in `PLAN.md`, and Codex's round 1 finding 12, offered two acceptable resolutions: publish the
+derived geometry under ODbL, or drop OSM-derived geometry from CH5. **Publishing was chosen.**
+
+The analysis that decided it:
+
+- The coverage map is a **Produced Work**, which alone would require only attribution, and the
+  footer already carried `Map data © OpenStreetMap contributors`.
+- But the derived database itself is imported by `lib/geometry/snapshot.ts`, bundled, and shipped to
+  every visitor. That is **Public Use of a Derivative Database**, which obliges us to offer the
+  database under ODbL. Attribution does not discharge share alike.
+- A private GitHub repository is not publication either, so nothing about the repo satisfied it.
+
+Implementation:
+
+- `scripts/export-geometry-odbl.mjs` (`npm run export:geodata`) emits
+  `public/data/dfw-geometry.odbl.json`: 236 road segments, 10 water rings, 12 cameras, 126 KB,
+  carrying the licence, attribution URL, exact Overpass query, pinned snapshot date
+  (2026-07-20), raw response sha256, bounding box, and derivation description.
+- Camera positions are included deliberately. They are computed against OpenStreetMap road
+  coordinates, so they are part of the derivative database rather than independent data.
+- The footer now attributes OpenStreetMap with a link to its copyright page, names the Open Database
+  Licence with a link, and links the dataset download. A recipient of the Produced Work can reach
+  the database it came from, which is what the licence actually requires.
+- Verified served: `GET /data/dfw-geometry.odbl.json` returns 200 `application/json`, 128,788 bytes.
+
+Standing obligation: re-run `npm run export:geodata` whenever the geometry snapshot changes. A stale
+published dataset would be worse than none.
+
+`data/PROVENANCE.md` and `docs/LAUNCH-CHECKLIST.md` are updated to match.

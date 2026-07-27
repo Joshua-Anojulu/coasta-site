@@ -57,4 +57,22 @@ Motorway and trunk links are excluded by the query. Whitelisted roads are clippe
 | US-75 | 32.76 | 32.76 | 100.0% |
 | DNT | 30.31 | 30.31 | 100.0% |
 
-The derived geometry and this provenance file must be reviewed for ODbL share alike publication before a public launch. See `docs/LAUNCH-CHECKLIST.md`.
+## ODbL share alike: RESOLVED 2026-07-27
+
+The question was whether shipping this derived geometry triggers the ODbL share alike term. It does.
+The coverage map is a Produced Work, which on its own would need only attribution, but the derived
+database itself is bundled into the client and therefore reaches every visitor. Under ODbL that is
+Public Use of a Derivative Database, which obliges us to offer that database under ODbL. Attribution
+alone does not discharge it, and this repository being private is not publication either.
+
+**Resolution: publish, do not drop.** The dataset is emitted to
+`public/data/dfw-geometry.odbl.json` by `npm run export:geodata`, carrying its licence, the exact
+Overpass query, the pinned snapshot date, the raw response hash, and the derivation description. The
+site footer attributes OpenStreetMap, names the licence, and links the download, so a recipient of
+the Produced Work can reach the database it came from.
+
+Camera positions are included deliberately. They are computed against OpenStreetMap road
+coordinates, so they are part of the derivative database rather than independent data.
+
+Regenerate with `npm run export:geodata` whenever the snapshot changes; a stale published dataset
+would be worse than none.

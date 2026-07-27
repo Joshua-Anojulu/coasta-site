@@ -30,6 +30,10 @@ All blocking items must be resolved before a public production deployment.
 ## OpenStreetMap licensing
 
 - [ ] Keep the visible `© OpenStreetMap contributors` credit linked to the copyright page.
-- [ ] Review whether the public deployment triggers ODbL share alike obligations for the derived geometry database.
+- [x] ODbL share alike for the derived geometry database. **Resolved 2026-07-27: it does trigger, and
+      we publish rather than drop.** `npm run export:geodata` emits the dataset to
+      `public/data/dfw-geometry.odbl.json`; the footer attributes OpenStreetMap, names the licence,
+      and links the download. Rationale in `data/PROVENANCE.md`. Re-run the export whenever the
+      geometry snapshot changes, or the published dataset goes stale.
 - [ ] If publication is required, publish the derived geometry and `data/PROVENANCE.md` at a stable public URL before launch.
 - [ ] Record the licensing decision and reviewer.
