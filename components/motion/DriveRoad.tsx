@@ -3,7 +3,16 @@
 import { useEffect, useRef } from "react"
 import { useScroll, type MotionValue } from "motion/react"
 import { usePrefersReducedMotion } from "./usePrefersReducedMotion"
-import { drawCones, drawDebris, drawVehicle, smoothstep, type VehicleKind } from "./drawScene"
+import {
+  drawCones,
+  drawDebris,
+  drawVehicle,
+  smoothstep,
+  vehicleScale,
+  PROFILES,
+  type BodyType,
+  type VehicleKind,
+} from "./drawScene"
 
 export type DriveEvent = {
   readonly at: number
@@ -12,27 +21,39 @@ export type DriveEvent = {
   readonly label: string
 }
 
-const TRAFFIC: ReadonlyArray<{ at: number; lane: number; speed: number; truck?: boolean }> = [
-  // Overtake distance is at / (1 - speed). Spacing of ~70m keeps two to four in
-  // view at once, which is what a real corridor looks like at night.
-  { at: 40, lane: -1, speed: 0.4 },
-  { at: 110, lane: 1, speed: 0.34, truck: true },
-  { at: 175, lane: 0.35, speed: 0.5 },
-  { at: 250, lane: -0.35, speed: 0.46 },
-  { at: 320, lane: 1, speed: 0.55 },
-  { at: 395, lane: -1, speed: 0.42, truck: true },
-  { at: 465, lane: 0.35, speed: 0.5 },
-  { at: 540, lane: 0, speed: 0.6 },
-  { at: 615, lane: -1, speed: 0.52 },
-  { at: 690, lane: 1, speed: 0.44, truck: true },
-  { at: 760, lane: 0.35, speed: 0.56 },
-  { at: 835, lane: -0.35, speed: 0.48 },
-  { at: 910, lane: 1, speed: 0.52 },
-  { at: 985, lane: -1, speed: 0.38, truck: true },
-  { at: 1060, lane: 0.35, speed: 0.54 },
-  { at: 1135, lane: 0, speed: 0.5 },
-  { at: 1210, lane: -0.35, speed: 0.46 },
-  { at: 1290, lane: 1, speed: 0.56 },
+/**
+ * The corridor's traffic.
+ *
+ * Every entry names its own body type. A motorway at night is a mix of
+ * saloons, hatchbacks, 4x4s, vans and lorries, and it is the mix that makes it
+ * read as traffic: eighteen identical silhouettes read as wallpaper no matter
+ * how well any one of them is drawn. Slower entries are the heavy ones, which
+ * is also true on a real road.
+ *
+ * Overtake distance is at / (1 - speed). Spacing of ~70m keeps two to four in
+ * view at once.
+ */
+const TRAFFIC: ReadonlyArray<{ at: number; lane: number; speed: number; body: BodyType }> = [
+  { at: 40, body: "sedan", lane: -1, speed: 0.4 },
+  { at: 110, body: "lorry", lane: 1, speed: 0.3 },
+  { at: 175, body: "hatch", lane: 0.35, speed: 0.5 },
+  { at: 250, body: "suv", lane: -0.35, speed: 0.46 },
+  { at: 320, body: "sedan", lane: 1, speed: 0.55 },
+  // Overtakes early on purpose: at 0.4 it drew level with the crash, which is
+  // also in the left lane, at 28m out, and drove straight through it.
+  { at: 395, body: "van", lane: -1, speed: 0.56 },
+  { at: 465, body: "pickup", lane: 0.35, speed: 0.48 },
+  { at: 540, body: "hatch", lane: 0, speed: 0.6 },
+  { at: 615, body: "sedan", lane: -1, speed: 0.52 },
+  { at: 690, body: "lorry", lane: 1, speed: 0.32 },
+  { at: 760, body: "suv", lane: 0.35, speed: 0.5 },
+  { at: 835, body: "sedan", lane: -0.35, speed: 0.54 },
+  { at: 910, body: "van", lane: 1, speed: 0.42 },
+  { at: 985, body: "lorry", lane: -1, speed: 0.34 },
+  { at: 1060, body: "hatch", lane: 0.35, speed: 0.56 },
+  { at: 1135, body: "pickup", lane: 0, speed: 0.46 },
+  { at: 1210, body: "sedan", lane: -0.35, speed: 0.52 },
+  { at: 1290, body: "suv", lane: 1, speed: 0.5 },
 ]
 
 const RUN = 1400
@@ -72,25 +93,22 @@ export function DriveRoad({
     let h = 0
 
     /**
-     * The lead vehicle: a real rendered car and trailer, keyed off its black
-     * background and held in the near field for the whole drive.
+     * Real renders for the two hazards that come closest to the camera.
      *
-     * It exists because of a measurement. At a 1280px viewport a car is 106px
-     * wide at the 16m cull but only 19px at 90m, and the coded traffic all sits
-     * in that far band, where a photoreal render and a drawn shape are
-     * indistinguishable. Detail only pays off close up, so this one is staged
-     * close and closes only 21m across the entire run.
+     * There used to be a third, a lead vehicle held in the near field. It was
+     * dropped: the render came back as a box trailer with a car's rear end
+     * grafted onto the bottom of it, and keying its background left a pale
+     * ghost that sat in the middle of the frame for the entire drive. A drawn
+     * lorry is both correct and controllable, so the lead is drawn now.
      */
     // Explicit keys rather than an index signature: with Record<string, _> every
     // read is `possibly undefined` and needs bracket access, which buys nothing
-    // for a fixed set of three.
+    // for a fixed set of two.
     const sprites: {
-      lead: HTMLImageElement | null
       police: HTMLImageElement | null
       stalled: HTMLImageElement | null
-    } = { lead: null, police: null, stalled: null }
+    } = { police: null, stalled: null }
     for (const [name, file] of [
-      ["lead", "traffic-near.webp"],
       ["police", "police.webp"],
       ["stalled", "stalled.webp"],
     ] as const) {
@@ -155,6 +173,29 @@ export function DriveRoad({
         offset += target * (moveIn - moveOut)
       }
       return offset
+    }
+
+    /**
+     * Where the lorry we are following sits, in metres across the carriageway.
+     *
+     * It runs in the left lane, which is the lane the crash blocks, so it has
+     * to get out of the way. It is not glued to us: it reaches each hazard
+     * first and moves at that hazard's distance, not ours, so you watch the
+     * vehicle ahead swing out and then follow it. That is the entire product in
+     * one gesture, and it is the reason the lead vehicle is worth having at all.
+     *
+     * Unlike the camera this is an object, so it can move a full lane without
+     * shearing anything.
+     */
+    const leadLateral = (ahead: number): number => {
+      let lat = -LANE
+      for (const ev of events) {
+        if (ev.lane !== -1) continue
+        const moveIn = smoothstep(ev.at - 150, ev.at - 45, ahead)
+        const moveOut = smoothstep(ev.at + 15, ev.at + 80, ahead)
+        lat += LANE * (moveIn - moveOut)
+      }
+      return lat
     }
 
     /**
@@ -282,11 +323,15 @@ export function DriveRoad({
       ctx.fillStyle = sky
       ctx.fillRect(0, horizon - h * 0.3, w, h * 0.3)
 
-      // Carriageway.
-      const nl = proj(-LANE * 1.5, 1.2)
-      const nr = proj(LANE * 1.5, 1.2)
-      const fl = proj(-LANE * 1.5, far)
-      const fr = proj(LANE * 1.5, far)
+      // Carriageway, out past the edge lines to include the hard shoulder. The
+      // shoulder hazards sit at 5.4m, which is exactly the edge of three live
+      // lanes, so without it a stopped vehicle stands half on the tarmac and
+      // half in the void.
+      const EDGE = LANE * 2.05
+      const nl = proj(-EDGE, 1.2)
+      const nr = proj(EDGE, 1.2)
+      const fl = proj(-EDGE, far)
+      const fr = proj(EDGE, far)
       ctx.beginPath()
       ctx.moveTo(nl.x, nl.y)
       ctx.lineTo(nr.x, nr.y)
@@ -307,6 +352,65 @@ export function DriveRoad({
       sheen.addColorStop(1, "rgba(150, 200, 235, 0.05)")
       ctx.fillStyle = sheen
       ctx.fillRect(0, horizon, w, h - horizon)
+
+      /**
+       * Our own headlights on the tarmac.
+       *
+       * The scene was geometrically right without this and still read wrong:
+       * every vehicle looked like it was hovering, because the road under it
+       * was the same near-black as the road fifty metres away. Nothing was
+       * lighting anything. A dipped beam falling on the surface is what puts
+       * the traffic on the ground, and it is the one light source a driver
+       * actually has at night.
+       *
+       * A straight line on the ground plane projects to a straight line, so
+       * each beam is an exact quad rather than an approximation.
+       */
+      const BEAM_SLICES = 20
+      const beam = (spread0: number, spread1: number, z0: number, z1: number, alpha: number) => {
+        const l0 = proj(-spread0, z0)
+        const r0 = proj(spread0, z0)
+        const l1 = proj(-spread1, z1)
+        const r1 = proj(spread1, z1)
+
+        // Sliced across the depth of the beam rather than filled as one quad
+        // with a blur. `ctx.filter = "blur()"` looked right and cost 150ms a
+        // frame at 2560px wide, against a whole-scene budget of 33ms; it is not
+        // on the fast path at that size. Slices give the same soft edge for
+        // sixty gradient objects, which is nothing.
+        for (let i = 0; i < BEAM_SLICES; i += 1) {
+          const t0 = i / BEAM_SLICES
+          const t1 = (i + 1) / BEAM_SLICES
+          const ya = l0.y + (l1.y - l0.y) * t0
+          const yb = l0.y + (l1.y - l0.y) * t1 + 1
+          const xla = l0.x + (l1.x - l0.x) * t0
+          const xra = r0.x + (r1.x - r0.x) * t0
+          const xlb = l0.x + (l1.x - l0.x) * t1
+          const xrb = r0.x + (r1.x - r0.x) * t1
+
+          // Brightest where a dipped beam actually pools, not at the bumper.
+          const fall = t0 < 0.32 ? 0.35 + (t0 / 0.32) * 0.65 : 1 - (t0 - 0.32) / 0.68
+          const a = alpha * fall
+          const g = ctx.createLinearGradient(Math.min(xla, xlb), 0, Math.max(xra, xrb), 0)
+          g.addColorStop(0, "rgba(196, 210, 228, 0)")
+          g.addColorStop(0.34, `rgba(196, 210, 228, ${a})`)
+          g.addColorStop(0.66, `rgba(196, 210, 228, ${a})`)
+          g.addColorStop(1, "rgba(196, 210, 228, 0)")
+          ctx.fillStyle = g
+          ctx.beginPath()
+          ctx.moveTo(xla, ya)
+          ctx.lineTo(xra, ya)
+          ctx.lineTo(xrb, yb)
+          ctx.lineTo(xlb, yb)
+          ctx.closePath()
+          ctx.fill()
+        }
+      }
+
+      ctx.globalCompositeOperation = "lighter"
+      // The broad spill, then a tighter hot core inside it.
+      beam(2.6, 6.2, 2, 62, 0.05)
+      beam(1.5, 3.4, 2.4, 44, 0.055)
       ctx.restore()
 
       ctx.globalCompositeOperation = "lighter"
@@ -331,6 +435,18 @@ export function DriveRoad({
         }
       }
 
+      // Ground haze. The sky gradient stopped dead at the horizon and the road
+      // began there in near-black, which drew a hard line straight across the
+      // frame. Real distance ends in air, not in an edge.
+      ctx.globalCompositeOperation = "lighter"
+      const haze = ctx.createLinearGradient(0, horizon - h * 0.09, 0, horizon + h * 0.07)
+      haze.addColorStop(0, "rgba(46, 78, 106, 0)")
+      haze.addColorStop(0.5, "rgba(46, 78, 106, 0.3)")
+      haze.addColorStop(1, "rgba(46, 78, 106, 0)")
+      ctx.fillStyle = haze
+      ctx.fillRect(0, horizon - h * 0.09, w, h * 0.16)
+
+      // Solid edge lines dividing the live lanes from the hard shoulder.
       for (const lateral of [-LANE * 1.5, LANE * 1.5]) {
         ctx.beginPath()
         for (let z = 3; z < far; z += 6) {
@@ -338,8 +454,8 @@ export function DriveRoad({
           if (z === 3) ctx.moveTo(p.x, p.y)
           else ctx.lineTo(p.x, p.y)
         }
-        ctx.strokeStyle = "rgba(120, 190, 230, 0.30)"
-        ctx.lineWidth = 1.4
+        ctx.strokeStyle = "rgba(190, 220, 245, 0.42)"
+        ctx.lineWidth = 2
         ctx.stroke()
       }
 
@@ -377,14 +493,14 @@ export function DriveRoad({
       type Item = { z: number; paint: () => void }
       const items: Item[] = []
 
-      const sizeAt = (z: number, truck: boolean) => {
-        const s = focal / Math.max(z, 0.6)
-        return {
-          halfW: Math.min((truck ? 1.28 : 0.92) * s, w * 0.11),
-          bodyH: Math.min((truck ? 1.5 : 0.72) * s, h * 0.16),
-          scale: s,
-        }
-      }
+      // Pixels per metre at a given distance, clamped uniformly per body type so
+      // a near vehicle keeps its proportions instead of squashing.
+      const sizeAt = (z: number, body: BodyType) =>
+        vehicleScale(focal / Math.max(z, 0.6), body, { h, w })
+
+      // How hard our own headlights fall on the vehicle ahead. Full inside 12m,
+      // gone by 45m, which is roughly the reach of a dipped beam.
+      const litAt = (z: number) => 1 - smoothstep(12, 45, z)
 
       const stride = tune.traffic >= 1 ? 1 : Math.max(1, Math.round(1 / Math.max(tune.traffic, 0.06)))
       // Above 1 the extra pass interleaves a second set half a gap further on,
@@ -399,7 +515,7 @@ export function DriveRoad({
         const z = v.at + pass.shift + travelled * v.speed - travelled
         if (z <= 2.2 || z >= far * 0.85) continue
         const fade = Math.max(0.12, 1 - z / (far * 0.85)) * pass.weight
-        const { halfW, bodyH } = sizeAt(z, v.truck === true)
+        const scale = sizeAt(z, v.body)
         const p = proj(v.lane * LANE, z)
         items.push({
           z,
@@ -407,10 +523,11 @@ export function DriveRoad({
             drawVehicle(ctx, {
               x: p.x,
               ground: p.y,
-              halfW,
-              bodyH,
+              scale,
               fade,
-              kind: v.truck === true ? "truck" : "car",
+              body: v.body,
+              lit: litAt(z),
+              variant: ti,
             }),
         })
       }
@@ -419,7 +536,12 @@ export function DriveRoad({
         const z = ev.at - travelled
         if (z <= 2.2 || z >= far) continue
         const fade = Math.min(1, Math.max(0.15, 1 - z / far) * tune.glow)
-        const { halfW, bodyH, scale } = sizeAt(z, false)
+        // The crash and the stall are saloons; the shoulder hazard the police
+        // are attending is one too. Debris borrows the sedan scale only to size
+        // its fragments.
+        const scale = sizeAt(z, "sedan")
+        const halfW = (PROFILES.sedan.widthM / 2) * scale
+        const bodyH = PROFILES.sedan.heightM * scale
 
         if (ev.kind === "debris") {
           const p = proj(ev.lane * LANE, z)
@@ -470,20 +592,33 @@ export function DriveRoad({
                 }
               }
             } else {
-              drawVehicle(ctx, { x: p.x, ground: p.y, halfW, bodyH, fade, kind, phase })
+              drawVehicle(ctx, {
+                x: p.x,
+                ground: p.y,
+                scale,
+                fade,
+                body: "sedan",
+                kind,
+                lit: litAt(z),
+                phase,
+                variant: 2,
+              })
             }
-            // A crash is two vehicles, the second askew behind the first.
+            // A crash is two vehicles, the second askew behind the first. It is
+            // a 4x4, so the pile reads as two different vehicles rather than as
+            // one shape drawn twice.
             if (ev.kind === "crash") {
               const p2 = proj(lateral + 1.5, z + 7)
-              const s2 = sizeAt(z + 7, false)
               drawVehicle(ctx, {
                 x: p2.x,
                 ground: p2.y,
-                halfW: s2.halfW * 0.92,
-                bodyH: s2.bodyH * 0.92,
+                scale: sizeAt(z + 7, "suv"),
                 fade: fade * 0.9,
+                body: "suv",
                 kind: "wreck",
+                lit: litAt(z + 7),
                 phase: phase + 0.5,
+                variant: 4,
               })
               drawCones(ctx, { proj, lateral: lateral - 1.4, z: z + 10, count: 4, fade })
             }
@@ -496,21 +631,29 @@ export function DriveRoad({
 
       // The lead vehicle joins the same depth-sorted pass so hazards and traffic
       // can pass in front of or behind it correctly.
-      const leadSprite = sprites.lead
-      if (leadSprite !== null) {
-        // 30m closing to about 24m, held in the left lane rather than dead ahead.
-        // At 17m it filled the centre of the frame and hid both the road and the
-        // hazards, which made it the subject instead of the context. The sprite
-        // carries a tall trailer, so it eats vertical space faster than a car
-        // would and has to sit further back than the bare distance suggests.
-        const lz = 30 - travelled * 0.0043
-        if (lz > 7) {
-          const p = proj(-LANE * 0.92, lz)
-          items.push({
-            z: lz,
-            paint: () => paintSprite(leadSprite, p, 3.5, focal / lz),
-          })
-        }
+      //
+      // A lorry, drawn rather than composited: it is the one thing in frame the
+      // whole way down the page, so it has to be right, and a trailer's rear is
+      // mostly flat panel, door seams and marker lights, which draws better
+      // than it renders. Held in the left lane at 30m closing to about 24m; at
+      // 17m it filled the centre of the frame and hid both the road and the
+      // hazards, which made it the subject instead of the context.
+      const lz = 30 - travelled * 0.0043
+      if (lz > 7) {
+        const p = proj(leadLateral(travelled + lz), lz)
+        items.push({
+          z: lz,
+          paint: () =>
+            drawVehicle(ctx, {
+              x: p.x,
+              ground: p.y,
+              scale: sizeAt(lz, "lorry"),
+              fade: 1,
+              body: "lorry",
+              lit: litAt(lz),
+              variant: 5,
+            }),
+        })
       }
 
       items.sort((a, b) => b.z - a.z)

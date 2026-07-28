@@ -8,35 +8,128 @@
 
 export type Projector = (lateral: number, z: number) => { x: number; y: number }
 
-export type VehicleKind = "car" | "truck" | "police" | "stalled" | "wreck"
+/**
+ * The silhouette. Separate from `kind` on purpose: a stalled vehicle can be any
+ * shape, and a lorry can be moving or wrecked. Conflating the two is what made
+ * every vehicle on the road the same cutout.
+ */
+export type BodyType = "sedan" | "hatch" | "suv" | "pickup" | "van" | "lorry"
+
+/** The behaviour layered on top of a silhouette: lights, flashers, damage. */
+export type VehicleKind = "moving" | "police" | "stalled" | "wreck"
 
 type Ctx = CanvasRenderingContext2D
 
-const BODY = "rgba(16, 20, 27, "
+type LampStyle = "block" | "tall" | "corner" | "cluster"
+
+type Profile = {
+  /** Real dimensions, in metres. Everything else is a fraction of these, so a
+   *  vehicle can never end up wider than it is long or squatter than it is. */
+  widthM: number
+  heightM: number
+  /** Roof half-width as a fraction of body half-width. 1 is a box. */
+  roof: number
+  /** Beltline height, as a fraction of total height above the road. */
+  belt: number
+  /** Roof crown, as a fraction of height. */
+  crown: number
+  /** Greenhouse depth above the beltline, as a fraction of height. 0 = none. */
+  glass: number
+  lamp: LampStyle
+  /** Lamp centre height, as a fraction of total height. */
+  lampY: number
+}
+
+/**
+ * Six real body types with their real proportions.
+ *
+ * The previous version drew every vehicle at 1.84m wide by 0.72m tall, which is
+ * a car half the height it should be. That is why near traffic read as dark
+ * slabs: nothing about the outline said "car", so all that was left was two red
+ * rectangles on a rounded box.
+ */
+export const PROFILES: Record<BodyType, Profile> = {
+  sedan: { belt: 0.52, crown: 0.05, glass: 0.34, heightM: 1.46, lamp: "block", lampY: 0.34, roof: 0.54, widthM: 1.84 },
+  hatch: { belt: 0.5, crown: 0.04, glass: 0.36, heightM: 1.52, lamp: "tall", lampY: 0.46, roof: 0.62, widthM: 1.76 },
+  suv: { belt: 0.5, crown: 0.03, glass: 0.38, heightM: 1.78, lamp: "tall", lampY: 0.5, roof: 0.78, widthM: 1.94 },
+  pickup: { belt: 0.62, crown: 0.02, glass: 0.22, heightM: 1.9, lamp: "corner", lampY: 0.3, roof: 0.58, widthM: 2.02 },
+  van: { belt: 0.62, crown: 0.02, glass: 0.16, heightM: 2.4, lamp: "tall", lampY: 0.32, roof: 0.9, widthM: 2 },
+  lorry: { belt: 0.9, crown: 0.01, glass: 0, heightM: 3.9, lamp: "cluster", lampY: 0.08, roof: 0.97, widthM: 2.55 },
+}
+
+/**
+ * Body tints. Night kills colour, so these are all close to black; the point is
+ * that a queue of six vehicles is not one shape repeated six times. Real
+ * traffic differs in the cool/warm cast the sodium lamps pull out of the paint.
+ */
+const TINTS: ReadonlyArray<readonly [number, number, number]> = [
+  [16, 20, 27],
+  [22, 22, 24],
+  [13, 18, 26],
+  [26, 23, 21],
+  [17, 24, 28],
+  [11, 12, 15],
+]
+
 const ROOF_LIGHT = "rgba(155, 190, 220, "
 
 /**
- * A vehicle seen from behind. A trapezoid body with a narrower roof, a glass
- * band, taillights and a ground shadow is enough to read as a car at this
- * scale, and it costs nothing to draw.
+ * Pixels per metre for a vehicle at this distance, clamped so a near one cannot
+ * fill the frame.
+ *
+ * The clamp is a single uniform factor rather than separate width and height
+ * caps. Capping each axis on its own means they bind at different distances, so
+ * a close vehicle stops growing wider while it is still growing taller and the
+ * silhouette visibly distorts.
+ */
+export function vehicleScale(
+  pxPerMetre: number,
+  body: BodyType,
+  viewport: { w: number; h: number },
+): number {
+  const p = PROFILES[body]
+  return Math.min(pxPerMetre, (viewport.w * 0.34) / p.widthM, (viewport.h * 0.62) / p.heightM)
+}
+
+/**
+ * A vehicle seen from behind, built from its real proportions.
+ *
+ * The silhouette, the greenhouse and the lamp signature all come from the body
+ * type, because at night a lamp signature is most of how you tell one vehicle
+ * from another. Everything is drawn from `scale` (pixels per metre) so the
+ * caller cannot get the aspect ratio wrong.
  */
 export function drawVehicle(
   ctx: Ctx,
   opts: {
     x: number
     ground: number
-    halfW: number
-    bodyH: number
+    /** Pixels per metre at this vehicle's distance. */
+    scale: number
     fade: number
-    kind: VehicleKind
+    body: BodyType
+    kind?: VehicleKind
     /** 0..1, drives the alternating flash on police and hazard lights. */
     phase?: number
+    /** Any integer; picks the body tint so consecutive vehicles differ. */
+    variant?: number
+    /** 0..1 wash from our own headlights. 1 is directly in front of you. */
+    lit?: number
   },
 ): void {
-  const { x, ground, halfW, bodyH, fade, kind } = opts
+  const { x, ground, scale, fade, body } = opts
+  const kind = opts.kind ?? "moving"
   const phase = opts.phase ?? 0
-  const roofInset = kind === "truck" ? 0.1 : 0.26
-  const roofY = ground - bodyH
+  const lit = opts.lit ?? 0
+  const p = PROFILES[body]
+
+  const halfW = (p.widthM / 2) * scale
+  const height = p.heightM * scale
+  const roofY = ground - height
+  const beltY = ground - height * p.belt
+  const sillY = ground - height * 0.07
+  const roofHalf = halfW * p.roof
+  const tint = TINTS[Math.abs(opts.variant ?? 0) % TINTS.length] ?? TINTS[0]!
 
   ctx.globalCompositeOperation = "source-over"
 
@@ -50,91 +143,118 @@ export function drawVehicle(
   ctx.fill()
 
   // Wheels first, so the body sits over them and only the tyre bottoms show.
-  // A car with no visible contact patch reads as a floating box no matter how
-  // good the rest of the silhouette is.
-  if (bodyH > 5) {
+  // A vehicle with no visible contact patch reads as a floating box no matter
+  // how good the rest of the silhouette is.
+  if (height > 8) {
+    const track = body === "lorry" ? 0.86 : 0.8
     ctx.fillStyle = `rgba(6, 8, 11, ${0.9 * fade})`
     for (const side of [-1, 1]) {
-      const wx = x + side * halfW * 0.78
       ctx.beginPath()
-      ctx.ellipse(wx, ground, halfW * 0.2, bodyH * 0.13, 0, 0, Math.PI * 2)
+      ctx.ellipse(x + side * halfW * track, ground, halfW * 0.2, height * 0.05, 0, 0, Math.PI * 2)
       ctx.fill()
     }
   }
 
-  // Body as a curved silhouette rather than a trapezoid: tapered shoulders, a
-  // rounded roof, and a slight tuck at the sills. Straight edges are what made
-  // the earlier version read as geometry instead of a vehicle.
-  const shoulderY = roofY + bodyH * 0.42
-  const sillY = ground - bodyH * 0.06
-  ctx.fillStyle = `${BODY}${Math.min(1, 0.7 + fade * 0.3)})`
+  // Body: flank up to the beltline, shoulders curving into the roof, a slight
+  // tuck at the sills. Straight edges are what made the earlier version read as
+  // geometry instead of a vehicle.
+  ctx.fillStyle = `rgba(${tint[0]}, ${tint[1]}, ${tint[2]}, ${Math.min(1, 0.72 + fade * 0.28)})`
   ctx.beginPath()
-  ctx.moveTo(x - halfW * 0.96, sillY)
-  ctx.lineTo(x - halfW, shoulderY + bodyH * 0.14)
-  // Shoulder into roof, both sides, with the roof crowned slightly.
-  ctx.quadraticCurveTo(x - halfW * 0.99, roofY + bodyH * 0.06, x - halfW * (1 - roofInset), roofY)
-  ctx.quadraticCurveTo(x, roofY - bodyH * 0.07, x + halfW * (1 - roofInset), roofY)
-  ctx.quadraticCurveTo(x + halfW * 0.99, roofY + bodyH * 0.06, x + halfW, shoulderY + bodyH * 0.14)
-  ctx.lineTo(x + halfW * 0.96, sillY)
-  ctx.quadraticCurveTo(x, ground + bodyH * 0.04, x - halfW * 0.96, sillY)
+  ctx.moveTo(x - halfW * 0.97, sillY)
+  ctx.lineTo(x - halfW, beltY)
+  ctx.quadraticCurveTo(x - halfW * 0.995, roofY + height * 0.05, x - roofHalf, roofY)
+  ctx.quadraticCurveTo(x, roofY - height * p.crown, x + roofHalf, roofY)
+  ctx.quadraticCurveTo(x + halfW * 0.995, roofY + height * 0.05, x + halfW, beltY)
+  ctx.lineTo(x + halfW * 0.97, sillY)
+  ctx.quadraticCurveTo(x, ground + height * 0.02, x - halfW * 0.97, sillY)
   ctx.closePath()
   ctx.fill()
 
-  // Rear glass, following the same curve as the roof.
-  if (kind !== "truck" && bodyH > 6) {
+  // Our headlights falling on the vehicle ahead. This is the single thing that
+  // stops a near vehicle reading as a black hole punched in the road.
+  if (lit > 0.01 && height > 10) {
+    ctx.save()
+    ctx.clip()
+    const wash = ctx.createLinearGradient(x, ground, x, beltY)
+    wash.addColorStop(0, `rgba(196, 210, 226, ${0.3 * lit})`)
+    wash.addColorStop(1, "rgba(196, 210, 226, 0)")
+    ctx.fillStyle = wash
+    ctx.fillRect(x - halfW, beltY, halfW * 2, ground - beltY)
+    ctx.restore()
+  }
+
+  // Rear glass, following the roof curve. A lorry has none, which is most of
+  // why it reads as a lorry.
+  if (p.glass > 0 && height > 10) {
+    const glassBottom = beltY
+    const glassTop = beltY - height * p.glass
     ctx.fillStyle = `rgba(44, 58, 76, ${0.55 * fade})`
     ctx.beginPath()
-    ctx.moveTo(x - halfW * 0.78, shoulderY)
-    ctx.quadraticCurveTo(x, roofY + bodyH * 0.06, x + halfW * 0.78, shoulderY)
-    ctx.lineTo(x + halfW * 0.7, shoulderY + bodyH * 0.05)
-    ctx.quadraticCurveTo(x, shoulderY + bodyH * 0.14, x - halfW * 0.7, shoulderY + bodyH * 0.05)
+    ctx.moveTo(x - halfW * 0.78, glassBottom)
+    ctx.quadraticCurveTo(x, glassTop - height * 0.02, x + halfW * 0.78, glassBottom)
+    ctx.quadraticCurveTo(x, glassBottom + height * 0.05, x - halfW * 0.78, glassBottom)
     ctx.closePath()
     ctx.fill()
   }
 
+  // A lorry's rear doors: the vertical split and its hinges. Two lines, and the
+  // shape stops being a plain box.
+  if (body === "lorry" && height > 24) {
+    ctx.strokeStyle = `rgba(118, 138, 160, ${0.22 * fade})`
+    ctx.lineWidth = Math.max(0.6, scale * 0.02)
+    ctx.beginPath()
+    ctx.moveTo(x, roofY + height * 0.04)
+    ctx.lineTo(x, ground - height * 0.14)
+    ctx.stroke()
+    for (const side of [-1, 1]) {
+      ctx.beginPath()
+      ctx.moveTo(x + side * halfW * 0.93, roofY + height * 0.06)
+      ctx.lineTo(x + side * halfW * 0.93, ground - height * 0.16)
+      ctx.stroke()
+    }
+    // Underrun bar and mudflaps, the things that actually sit at eye level.
+    ctx.fillStyle = `rgba(9, 11, 15, ${0.85 * fade})`
+    ctx.fillRect(x - halfW * 0.9, ground - height * 0.13, halfW * 1.8, height * 0.03)
+  }
+
   // Bumper line: one hairline across the lower body. Cheap, and it breaks up
   // the mass the way a real rear end does.
-  if (bodyH > 8) {
+  if (height > 14 && body !== "lorry") {
     ctx.strokeStyle = `rgba(120, 140, 165, ${0.18 * fade})`
-    ctx.lineWidth = Math.max(0.5, bodyH * 0.03)
+    ctx.lineWidth = Math.max(0.5, height * 0.014)
     ctx.beginPath()
-    ctx.moveTo(x - halfW * 0.9, ground - bodyH * 0.24)
-    ctx.lineTo(x + halfW * 0.9, ground - bodyH * 0.24)
+    ctx.moveTo(x - halfW * 0.9, ground - height * 0.2)
+    ctx.lineTo(x + halfW * 0.9, ground - height * 0.2)
     ctx.stroke()
+  }
+
+  // Number plate, lit by its own lamp. Only worth drawing when it would be more
+  // than a couple of pixels, but at that size it is unmistakably a vehicle.
+  if (height > 30) {
+    const plateW = halfW * 0.44
+    const plateH = height * 0.055
+    const plateY = ground - height * (body === "lorry" ? 0.19 : 0.15)
+    ctx.fillStyle = `rgba(228, 232, 226, ${0.5 * fade})`
+    ctx.fillRect(x - plateW / 2, plateY - plateH, plateW, plateH)
   }
 
   // Roof edge catching the gantry light overhead.
   ctx.strokeStyle = `${ROOF_LIGHT}${0.34 * fade})`
   ctx.lineWidth = Math.max(0.6, 1.3 * fade)
   ctx.beginPath()
-  ctx.moveTo(x - halfW * (1 - roofInset), roofY)
-  ctx.lineTo(x + halfW * (1 - roofInset), roofY)
+  ctx.moveTo(x - roofHalf, roofY)
+  ctx.lineTo(x + roofHalf, roofY)
   ctx.stroke()
 
-  // Taillights.
-  ctx.globalCompositeOperation = "lighter"
-  const lampY = ground - bodyH * (kind === "truck" ? 0.24 : 0.46)
-  const lampW = Math.max(1.2, halfW * 0.3)
-  const lampH = Math.max(0.9, bodyH * 0.14)
-  const bloomR = Math.min(Math.max(3, halfW * 0.9), 26)
+  drawLamps(ctx, { body, fade, ground, halfW, height, p, scale, x })
 
-  for (const side of [-1, 1]) {
-    const lx = x + side * halfW * 0.66
-    const bloom = ctx.createRadialGradient(lx, lampY, 0, lx, lampY, bloomR)
-    bloom.addColorStop(0, `rgba(255, 66, 52, ${0.44 * fade})`)
-    bloom.addColorStop(1, "rgba(255, 66, 52, 0)")
-    ctx.fillStyle = bloom
-    ctx.beginPath()
-    ctx.arc(lx, lampY, bloomR, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.fillStyle = `rgba(255, 94, 76, ${Math.min(1, 0.78 + fade * 0.22)})`
-    ctx.fillRect(lx - lampW / 2, lampY - lampH / 2, lampW, lampH)
-  }
+  ctx.globalCompositeOperation = "lighter"
+  const bloomR = Math.min(Math.max(3, halfW * 0.9), 26)
+  const lampY = ground - height * p.lampY
 
   // Hazard flashers on a stopped vehicle: both corners, in unison, amber.
   if (kind === "stalled" || kind === "wreck") {
-    const on = phase % 1 < 0.5
-    if (on) {
+    if (phase % 1 < 0.5) {
       for (const side of [-1, 1]) {
         const hx = x + side * halfW * 0.92
         const hazard = ctx.createRadialGradient(hx, lampY, 0, hx, lampY, bloomR * 1.3)
@@ -152,12 +272,15 @@ export function drawVehicle(
   // thing a driver actually recognises from distance, so it is drawn as a bar
   // rather than as a generic glow.
   if (kind === "police") {
-    const barY = roofY - Math.max(1.5, bodyH * 0.16)
+    const barY = roofY - Math.max(1.5, height * 0.07)
     const barHalf = halfW * 0.62
-    const barH = Math.max(1.4, bodyH * 0.14)
+    const barH = Math.max(1.4, height * 0.06)
+    const lampW = Math.max(1.2, halfW * 0.3)
+    ctx.globalCompositeOperation = "source-over"
     ctx.fillStyle = `rgba(30, 38, 50, ${0.9 * fade})`
     ctx.fillRect(x - barHalf, barY - barH / 2, barHalf * 2, barH)
 
+    ctx.globalCompositeOperation = "lighter"
     const blueLeft = phase % 1 < 0.5
     const lamps: Array<[number, string]> = [
       [-barHalf * 0.5, blueLeft ? "60, 130, 255" : "18, 30, 55"],
@@ -173,6 +296,72 @@ export function drawVehicle(
       ctx.fill()
       ctx.fillStyle = `rgba(${rgb}, ${Math.min(1, 0.8 + fade * 0.2)})`
       ctx.fillRect(x + dx - lampW * 0.6, barY - barH * 0.35, lampW * 1.2, barH * 0.7)
+    }
+  }
+
+  ctx.globalCompositeOperation = "source-over"
+}
+
+/**
+ * Taillight signatures.
+ *
+ * At night this is nearly all you see of a vehicle, so it carries most of the
+ * work of telling one apart from another: a saloon's wide low blocks, a hatch's
+ * tall corner lamps, a lorry's small clusters under a row of amber markers.
+ */
+function drawLamps(
+  ctx: Ctx,
+  a: {
+    x: number
+    ground: number
+    halfW: number
+    height: number
+    scale: number
+    fade: number
+    body: BodyType
+    p: Profile
+  },
+): void {
+  const { x, ground, halfW, height, fade, body, p } = a
+  const lampY = ground - height * p.lampY
+
+  const geom: Record<LampStyle, { w: number; h: number; inset: number }> = {
+    block: { h: 0.1, inset: 0.6, w: 0.34 },
+    tall: { h: 0.22, inset: 0.76, w: 0.19 },
+    corner: { h: 0.19, inset: 0.81, w: 0.17 },
+    cluster: { h: 0.05, inset: 0.56, w: 0.15 },
+  }
+  const g = geom[p.lamp]
+  const lampW = Math.max(1.2, halfW * g.w)
+  const lampH = Math.max(0.9, height * g.h)
+  const bloomR = Math.min(Math.max(3, halfW * 0.9), 26)
+
+  ctx.globalCompositeOperation = "lighter"
+  for (const side of [-1, 1]) {
+    const lx = x + side * halfW * g.inset
+    const bloom = ctx.createRadialGradient(lx, lampY, 0, lx, lampY, bloomR)
+    bloom.addColorStop(0, `rgba(255, 66, 52, ${0.44 * fade})`)
+    bloom.addColorStop(1, "rgba(255, 66, 52, 0)")
+    ctx.fillStyle = bloom
+    ctx.beginPath()
+    ctx.arc(lx, lampY, bloomR, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.fillStyle = `rgba(255, 94, 76, ${Math.min(1, 0.78 + fade * 0.22)})`
+    ctx.fillRect(lx - lampW / 2, lampY - lampH / 2, lampW, lampH)
+  }
+
+  // A lorry also carries amber marker lights along its top edge and reflective
+  // tape down the door split. Both are regulation, and both are what makes the
+  // shape ahead of you read as a lorry from half a mile back.
+  if (body === "lorry" && height > 18) {
+    const roofY = ground - height
+    const dotR = Math.max(0.8, halfW * 0.055)
+    for (let i = -2; i <= 2; i += 1) {
+      const mx = x + (i / 2) * halfW * 0.88
+      ctx.fillStyle = `rgba(255, 168, 44, ${0.8 * fade})`
+      ctx.beginPath()
+      ctx.arc(mx, roofY + dotR, dotR, 0, Math.PI * 2)
+      ctx.fill()
     }
   }
 }
