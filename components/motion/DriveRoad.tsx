@@ -75,14 +75,47 @@ export function DriveRoad({
      * indistinguishable. Detail only pays off close up, so this one is staged
      * close and closes only 21m across the entire run.
      */
-    let lead: HTMLImageElement | null = null
-    let leadReady = false
-    const leadImage = new Image()
-    leadImage.onload = () => {
-      lead = leadImage
-      leadReady = true
+    // Explicit keys rather than an index signature: with Record<string, _> every
+    // read is `possibly undefined` and needs bracket access, which buys nothing
+    // for a fixed set of three.
+    const sprites: {
+      lead: HTMLImageElement | null
+      police: HTMLImageElement | null
+      stalled: HTMLImageElement | null
+    } = { lead: null, police: null, stalled: null }
+    for (const [name, file] of [
+      ["lead", "traffic-near.webp"],
+      ["police", "police.webp"],
+      ["stalled", "stalled.webp"],
+    ] as const) {
+      const img = new Image()
+      img.onload = () => {
+        sprites[name] = img
+      }
+      img.src = `/vehicles/${file}`
     }
-    leadImage.src = "/vehicles/traffic-near.webp"
+
+    /** Draws a keyed sprite standing on the road at `ground`, plus its contact
+     *  shadow. Width is given in metres so it scales with perspective like
+     *  everything else in the scene. */
+    const paintSprite = (
+      img: HTMLImageElement,
+      p: { x: number; y: number },
+      metres: number,
+      scale: number,
+    ) => {
+      const halfW = (metres / 2) * scale
+      const spriteH = halfW * 2 * (img.naturalHeight / img.naturalWidth)
+      ctx.globalCompositeOperation = "source-over"
+      const sh = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, halfW * 1.5)
+      sh.addColorStop(0, "rgba(0, 0, 0, 0.6)")
+      sh.addColorStop(1, "rgba(0, 0, 0, 0)")
+      ctx.fillStyle = sh
+      ctx.beginPath()
+      ctx.ellipse(p.x, p.y, halfW * 1.5, halfW * 0.34, 0, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.drawImage(img as CanvasImageSource, p.x - halfW, p.y - spriteH, halfW * 2, spriteH)
+    }
 
     const resize = () => {
       const rect = canvas.getBoundingClientRect()
@@ -345,10 +378,36 @@ export function DriveRoad({
         // On the shoulder, not in a live lane, except the crash which blocks one.
         const lateral = ev.kind === "crash" ? ev.lane * LANE : ev.lane * LANE * 1.5
         const p = proj(lateral, z)
+        const sprite = ev.kind === "police" ? sprites.police : ev.kind === "stall" ? sprites.stalled : null
+
         items.push({
           z,
           paint: () => {
-            drawVehicle(ctx, { x: p.x, ground: p.y, halfW, bodyH, fade, kind, phase })
+            if (sprite !== null) {
+              // Real render for the hazards that get closest. The police sprite
+              // already carries a lit bar, so no coded bar over it.
+              paintSprite(sprite, p, ev.kind === "police" ? 2.1 : 1.9, focal / Math.max(z, 0.6))
+              if (ev.kind === "stall" && phase % 1 < 0.5) {
+                // The render came back with brake lights rather than the amber
+                // hazards that were asked for, so the flashers are drawn over
+                // it. Real bodywork, real flashing.
+                ctx.globalCompositeOperation = "lighter"
+                for (const side of [-1, 1]) {
+                  const hx = p.x + side * halfW * 0.85
+                  const hy = p.y - bodyH * 0.5
+                  const r = Math.min(Math.max(4, halfW * 1.1), 30)
+                  const g = ctx.createRadialGradient(hx, hy, 0, hx, hy, r)
+                  g.addColorStop(0, `rgba(255, 176, 0, ${0.85 * fade})`)
+                  g.addColorStop(1, "rgba(255, 176, 0, 0)")
+                  ctx.fillStyle = g
+                  ctx.beginPath()
+                  ctx.arc(hx, hy, r, 0, Math.PI * 2)
+                  ctx.fill()
+                }
+              }
+            } else {
+              drawVehicle(ctx, { x: p.x, ground: p.y, halfW, bodyH, fade, kind, phase })
+            }
             // A crash is two vehicles, the second askew behind the first.
             if (ev.kind === "crash") {
               const p2 = proj(lateral + 1.5, z + 7)
@@ -373,31 +432,19 @@ export function DriveRoad({
 
       // The lead vehicle joins the same depth-sorted pass so hazards and traffic
       // can pass in front of or behind it correctly.
-      if (leadReady && lead !== null) {
-        // 17m closing to about 11m across the run. 46m looked far away despite
-        // being "near": at a 1.5m camera height the contact point sits only
-        // ~30px below the horizon, so the eye reads it as distant regardless of
-        // the number. Under 20m is where a vehicle gains real presence.
-        const lz = 17 - travelled * 0.0043
+      const leadSprite = sprites.lead
+      if (leadSprite !== null) {
+        // 30m closing to about 24m, held in the left lane rather than dead ahead.
+        // At 17m it filled the centre of the frame and hid both the road and the
+        // hazards, which made it the subject instead of the context. The sprite
+        // carries a tall trailer, so it eats vertical space faster than a car
+        // would and has to sit further back than the bare distance suggests.
+        const lz = 30 - travelled * 0.0043
         if (lz > 7) {
-          const s = focal / lz
-          const halfW = 1.75 * s
-          const spriteH = halfW * 2 * (lead.naturalHeight / lead.naturalWidth)
-          const p = proj(-LANE * 0.5, lz)
+          const p = proj(-LANE * 0.92, lz)
           items.push({
             z: lz,
-            paint: () => {
-              ctx.globalCompositeOperation = "source-over"
-              // Contact shadow, so it sits on the tarmac like the drawn traffic.
-              const sh = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, halfW * 1.5)
-              sh.addColorStop(0, "rgba(0, 0, 0, 0.6)")
-              sh.addColorStop(1, "rgba(0, 0, 0, 0)")
-              ctx.fillStyle = sh
-              ctx.beginPath()
-              ctx.ellipse(p.x, p.y, halfW * 1.5, halfW * 0.34, 0, 0, Math.PI * 2)
-              ctx.fill()
-              ctx.drawImage(lead as CanvasImageSource, p.x - halfW, p.y - spriteH, halfW * 2, spriteH)
-            },
+            paint: () => paintSprite(leadSprite, p, 3.5, focal / lz),
           })
         }
       }
