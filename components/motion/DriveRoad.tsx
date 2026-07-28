@@ -65,6 +65,25 @@ export function DriveRoad({
     let w = 0
     let h = 0
 
+    /**
+     * The lead vehicle: a real rendered car and trailer, keyed off its black
+     * background and held in the near field for the whole drive.
+     *
+     * It exists because of a measurement. At a 1280px viewport a car is 106px
+     * wide at the 16m cull but only 19px at 90m, and the coded traffic all sits
+     * in that far band, where a photoreal render and a drawn shape are
+     * indistinguishable. Detail only pays off close up, so this one is staged
+     * close and closes only 21m across the entire run.
+     */
+    let lead: HTMLImageElement | null = null
+    let leadReady = false
+    const leadImage = new Image()
+    leadImage.onload = () => {
+      lead = leadImage
+      leadReady = true
+    }
+    leadImage.src = "/vehicles/traffic-near.webp"
+
     const resize = () => {
       const rect = canvas.getBoundingClientRect()
       const dpr = Math.min(window.devicePixelRatio || 1, 2)
@@ -350,6 +369,37 @@ export function DriveRoad({
             }
           },
         })
+      }
+
+      // The lead vehicle joins the same depth-sorted pass so hazards and traffic
+      // can pass in front of or behind it correctly.
+      if (leadReady && lead !== null) {
+        // 17m closing to about 11m across the run. 46m looked far away despite
+        // being "near": at a 1.5m camera height the contact point sits only
+        // ~30px below the horizon, so the eye reads it as distant regardless of
+        // the number. Under 20m is where a vehicle gains real presence.
+        const lz = 17 - travelled * 0.0043
+        if (lz > 7) {
+          const s = focal / lz
+          const halfW = 1.75 * s
+          const spriteH = halfW * 2 * (lead.naturalHeight / lead.naturalWidth)
+          const p = proj(-LANE * 0.5, lz)
+          items.push({
+            z: lz,
+            paint: () => {
+              ctx.globalCompositeOperation = "source-over"
+              // Contact shadow, so it sits on the tarmac like the drawn traffic.
+              const sh = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, halfW * 1.5)
+              sh.addColorStop(0, "rgba(0, 0, 0, 0.6)")
+              sh.addColorStop(1, "rgba(0, 0, 0, 0)")
+              ctx.fillStyle = sh
+              ctx.beginPath()
+              ctx.ellipse(p.x, p.y, halfW * 1.5, halfW * 0.34, 0, 0, Math.PI * 2)
+              ctx.fill()
+              ctx.drawImage(lead as CanvasImageSource, p.x - halfW, p.y - spriteH, halfW * 2, spriteH)
+            },
+          })
+        }
       }
 
       items.sort((a, b) => b.z - a.z)
