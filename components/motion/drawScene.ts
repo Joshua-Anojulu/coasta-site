@@ -27,6 +27,9 @@ type Profile = {
    *  vehicle can never end up wider than it is long or squatter than it is. */
   widthM: number
   heightM: number
+  /** Only used off-canvas, to check that no two vehicles occupy the same
+   *  stretch of the same lane. See tests/drive-traffic.test.ts. */
+  lengthM: number
   /** Roof half-width as a fraction of body half-width. 1 is a box. */
   roof: number
   /** Beltline height, as a fraction of total height above the road. */
@@ -49,27 +52,46 @@ type Profile = {
  * rectangles on a rounded box.
  */
 export const PROFILES: Record<BodyType, Profile> = {
-  sedan: { belt: 0.52, crown: 0.05, glass: 0.34, heightM: 1.46, lamp: "block", lampY: 0.34, roof: 0.54, widthM: 1.84 },
-  hatch: { belt: 0.5, crown: 0.04, glass: 0.36, heightM: 1.52, lamp: "tall", lampY: 0.46, roof: 0.62, widthM: 1.76 },
-  suv: { belt: 0.5, crown: 0.03, glass: 0.38, heightM: 1.78, lamp: "tall", lampY: 0.5, roof: 0.78, widthM: 1.94 },
-  pickup: { belt: 0.62, crown: 0.02, glass: 0.22, heightM: 1.9, lamp: "corner", lampY: 0.3, roof: 0.58, widthM: 2.02 },
-  van: { belt: 0.62, crown: 0.02, glass: 0.16, heightM: 2.4, lamp: "tall", lampY: 0.32, roof: 0.9, widthM: 2 },
-  lorry: { belt: 0.9, crown: 0.01, glass: 0, heightM: 3.9, lamp: "cluster", lampY: 0.08, roof: 0.97, widthM: 2.55 },
+  sedan: { belt: 0.52, crown: 0.05, glass: 0.34, heightM: 1.46, lamp: "block", lampY: 0.34, lengthM: 4.7, roof: 0.54, widthM: 1.84 },
+  hatch: { belt: 0.5, crown: 0.04, glass: 0.36, heightM: 1.52, lamp: "tall", lampY: 0.46, lengthM: 4.1, roof: 0.62, widthM: 1.76 },
+  suv: { belt: 0.5, crown: 0.03, glass: 0.38, heightM: 1.78, lamp: "tall", lampY: 0.5, lengthM: 4.8, roof: 0.78, widthM: 1.94 },
+  pickup: { belt: 0.62, crown: 0.02, glass: 0.22, heightM: 1.9, lamp: "corner", lampY: 0.3, lengthM: 5.8, roof: 0.58, widthM: 2.02 },
+  van: { belt: 0.62, crown: 0.02, glass: 0.16, heightM: 2.4, lamp: "tall", lampY: 0.32, lengthM: 5.4, roof: 0.9, widthM: 2 },
+  lorry: { belt: 0.9, crown: 0.01, glass: 0, heightM: 3.9, lamp: "cluster", lampY: 0.08, lengthM: 16.5, roof: 0.97, widthM: 2.55 },
 }
 
 /**
- * Body tints. Night kills colour, so these are all close to black; the point is
- * that a queue of six vehicles is not one shape repeated six times. Real
- * traffic differs in the cool/warm cast the sodium lamps pull out of the paint.
+ * Real paint colours, not night colours.
+ *
+ * At night a car's colour is not a property of the car, it is a property of how
+ * much light is falling on it. At two hundred metres everything is a black
+ * shape with red lights on it; the paint only arrives when your headlights
+ * reach it. So these are the colours in daylight and the renderer multiplies
+ * them by the light actually landing on the vehicle, which means colour blooms
+ * as traffic comes towards you and drains away again behind.
+ *
+ * Weighted the way a real car park is: silver, white, grey and black are most
+ * of the road, and the saturated ones are the exception that makes you notice.
  */
-const TINTS: ReadonlyArray<readonly [number, number, number]> = [
-  [16, 20, 27],
-  [22, 22, 24],
-  [13, 18, 26],
-  [26, 23, 21],
-  [17, 24, 28],
-  [11, 12, 15],
+const PAINTS: ReadonlyArray<readonly [number, number, number]> = [
+  [214, 217, 220], // silver
+  [38, 41, 46], // graphite
+  [236, 238, 240], // white
+  [30, 44, 72], // deep navy
+  [70, 74, 80], // gunmetal
+  [104, 40, 42], // dark red
+  [216, 219, 222], // silver again, so the saturated ones stay rare
+  [32, 58, 50], // bottle green
+  [46, 48, 52], // near black
+  [92, 76, 58], // bronze
 ]
+
+/** Ambient sky and sodium spill, before our headlights reach anything. */
+const AMBIENT = 0.14
+/** How much of a paint colour a full dipped beam returns. Deliberately short
+ *  of the daylight value: a headlight is one hard light from one direction, so
+ *  even a lit car reads as a darker version of its colour, never as itself. */
+const BEAM = 0.5
 
 const ROOF_LIGHT = "rgba(155, 190, 220, "
 
@@ -88,7 +110,10 @@ export function vehicleScale(
   viewport: { w: number; h: number },
 ): number {
   const p = PROFILES[body]
-  return Math.min(pxPerMetre, (viewport.w * 0.34) / p.widthM, (viewport.h * 0.62) / p.heightM)
+  // A quarter of the frame's width, or a bit under half its height. Anything
+  // larger and the vehicle you are passing becomes the subject of the page
+  // instead of the road and the hazard on it.
+  return Math.min(pxPerMetre, (viewport.w * 0.26) / p.widthM, (viewport.h * 0.46) / p.heightM)
 }
 
 /**
@@ -129,7 +154,12 @@ export function drawVehicle(
   const beltY = ground - height * p.belt
   const sillY = ground - height * 0.07
   const roofHalf = halfW * p.roof
-  const tint = TINTS[Math.abs(opts.variant ?? 0) % TINTS.length] ?? TINTS[0]!
+  const paint = PAINTS[Math.abs(opts.variant ?? 0) % PAINTS.length] ?? PAINTS[0]!
+  // The whole colour model: paint times the light landing on it.
+  const k = AMBIENT + BEAM * lit
+  const body0 = Math.round(paint[0] * k)
+  const body1 = Math.round(paint[1] * k)
+  const body2 = Math.round(paint[2] * k)
 
   ctx.globalCompositeOperation = "source-over"
 
@@ -158,7 +188,17 @@ export function drawVehicle(
   // Body: flank up to the beltline, shoulders curving into the roof, a slight
   // tuck at the sills. Straight edges are what made the earlier version read as
   // geometry instead of a vehicle.
-  ctx.fillStyle = `rgba(${tint[0]}, ${tint[1]}, ${tint[2]}, ${Math.min(1, 0.72 + fade * 0.28)})`
+  // Shaded top to bottom rather than filled flat. One headlight from one
+  // direction does not light a car evenly: the roof stays close to ambient and
+  // the lower body takes the beam. Filled flat, a silver car at ten metres came
+  // out as a pale bar of soap with no form in it at all.
+  const shade = ctx.createLinearGradient(x, roofY, x, ground)
+  const roofK = AMBIENT + BEAM * lit * 0.28
+  shade.addColorStop(0, `rgb(${Math.round(paint[0] * roofK)}, ${Math.round(paint[1] * roofK)}, ${Math.round(paint[2] * roofK)})`)
+  shade.addColorStop(0.62, `rgb(${body0}, ${body1}, ${body2})`)
+  shade.addColorStop(1, `rgb(${Math.round(body0 * 0.7)}, ${Math.round(body1 * 0.7)}, ${Math.round(body2 * 0.7)})`)
+  ctx.globalAlpha = Math.min(1, 0.72 + fade * 0.28)
+  ctx.fillStyle = shade
   ctx.beginPath()
   ctx.moveTo(x - halfW * 0.97, sillY)
   ctx.lineTo(x - halfW, beltY)
@@ -169,19 +209,7 @@ export function drawVehicle(
   ctx.quadraticCurveTo(x, ground + height * 0.02, x - halfW * 0.97, sillY)
   ctx.closePath()
   ctx.fill()
-
-  // Our headlights falling on the vehicle ahead. This is the single thing that
-  // stops a near vehicle reading as a black hole punched in the road.
-  if (lit > 0.01 && height > 10) {
-    ctx.save()
-    ctx.clip()
-    const wash = ctx.createLinearGradient(x, ground, x, beltY)
-    wash.addColorStop(0, `rgba(196, 210, 226, ${0.3 * lit})`)
-    wash.addColorStop(1, "rgba(196, 210, 226, 0)")
-    ctx.fillStyle = wash
-    ctx.fillRect(x - halfW, beltY, halfW * 2, ground - beltY)
-    ctx.restore()
-  }
+  ctx.globalAlpha = 1
 
   // Rear glass, following the roof curve. A lorry has none, which is most of
   // why it reads as a lorry.
@@ -272,6 +300,34 @@ export function drawVehicle(
   // thing a driver actually recognises from distance, so it is drawn as a bar
   // rather than as a generic glow.
   if (kind === "police") {
+    // Rear chevrons. The light bar says "emergency" but the chevrons are what
+    // says "stopped, on the shoulder, walk around it", and they hold their
+    // read at sizes where nothing else on the bodywork survives.
+    if (height > 20) {
+      ctx.globalCompositeOperation = "source-over"
+      ctx.save()
+      ctx.beginPath()
+      ctx.rect(x - halfW * 0.88, ground - height * 0.34, halfW * 1.76, height * 0.17)
+      ctx.clip()
+      const bandY = ground - height * 0.34
+      const bandH = height * 0.17
+      const step = halfW * 0.42
+      for (let i = -4; i <= 4; i += 1) {
+        ctx.fillStyle =
+          i % 2 === 0
+            ? `rgba(${Math.round(226 * (k + 0.2))}, ${Math.round(150 * (k + 0.2))}, ${Math.round(24 * (k + 0.2))}, ${fade})`
+            : `rgba(${Math.round(232 * (k + 0.2))}, ${Math.round(236 * (k + 0.2))}, ${Math.round(238 * (k + 0.2))}, ${fade})`
+        ctx.beginPath()
+        ctx.moveTo(x + i * step, bandY)
+        ctx.lineTo(x + i * step + step * 0.6, bandY)
+        ctx.lineTo(x + i * step + step * 0.6 - bandH * 0.55, bandY + bandH)
+        ctx.lineTo(x + i * step - bandH * 0.55, bandY + bandH)
+        ctx.closePath()
+        ctx.fill()
+      }
+      ctx.restore()
+    }
+
     const barY = roofY - Math.max(1.5, height * 0.07)
     const barHalf = halfW * 0.62
     const barH = Math.max(1.4, height * 0.06)
@@ -336,18 +392,25 @@ function drawLamps(
   const lampH = Math.max(0.9, height * g.h)
   const bloomR = Math.min(Math.max(3, halfW * 0.9), 26)
 
-  ctx.globalCompositeOperation = "lighter"
   for (const side of [-1, 1]) {
     const lx = x + side * halfW * g.inset
+    // The lens is opaque, not additive. Added on top of a light-coloured body a
+    // red lamp goes white, which is exactly what a silver car's taillights did.
+    ctx.globalCompositeOperation = "source-over"
+    ctx.fillStyle = `rgba(216, 38, 30, ${Math.min(1, 0.82 + fade * 0.18)})`
+    ctx.fillRect(lx - lampW / 2, lampY - lampH / 2, lampW, lampH)
+
+    // The glow around it is additive, because that part really is light in air.
+    ctx.globalCompositeOperation = "lighter"
     const bloom = ctx.createRadialGradient(lx, lampY, 0, lx, lampY, bloomR)
-    bloom.addColorStop(0, `rgba(255, 66, 52, ${0.44 * fade})`)
+    bloom.addColorStop(0, `rgba(255, 66, 52, ${0.4 * fade})`)
     bloom.addColorStop(1, "rgba(255, 66, 52, 0)")
     ctx.fillStyle = bloom
     ctx.beginPath()
     ctx.arc(lx, lampY, bloomR, 0, Math.PI * 2)
     ctx.fill()
-    ctx.fillStyle = `rgba(255, 94, 76, ${Math.min(1, 0.78 + fade * 0.22)})`
-    ctx.fillRect(lx - lampW / 2, lampY - lampH / 2, lampW, lampH)
+    ctx.fillStyle = `rgba(255, 120, 96, ${0.5 * fade})`
+    ctx.fillRect(lx - lampW * 0.34, lampY - lampH * 0.3, lampW * 0.68, lampH * 0.6)
   }
 
   // A lorry also carries amber marker lights along its top edge and reflective

@@ -7,58 +7,17 @@ import {
   drawCones,
   drawDebris,
   drawVehicle,
-  smoothstep,
   vehicleScale,
-  PROFILES,
   type BodyType,
   type VehicleKind,
 } from "./drawScene"
+import { LANE, occupantsAt, smoothstep, TRAFFIC_FAR, type DriveEvent } from "./traffic"
 
-export type DriveEvent = {
-  readonly at: number
-  readonly lane: -1 | 0 | 1
-  readonly kind: "police" | "crash" | "stall" | "debris"
-  readonly label: string
-}
+export type { DriveEvent }
 
-/**
- * The corridor's traffic.
- *
- * Every entry names its own body type. A motorway at night is a mix of
- * saloons, hatchbacks, 4x4s, vans and lorries, and it is the mix that makes it
- * read as traffic: eighteen identical silhouettes read as wallpaper no matter
- * how well any one of them is drawn. Slower entries are the heavy ones, which
- * is also true on a real road.
- *
- * Overtake distance is at / (1 - speed). Spacing of ~70m keeps two to four in
- * view at once.
- */
-const TRAFFIC: ReadonlyArray<{ at: number; lane: number; speed: number; body: BodyType }> = [
-  { at: 40, body: "sedan", lane: -1, speed: 0.4 },
-  { at: 110, body: "lorry", lane: 1, speed: 0.3 },
-  { at: 175, body: "hatch", lane: 0.35, speed: 0.5 },
-  { at: 250, body: "suv", lane: -0.35, speed: 0.46 },
-  { at: 320, body: "sedan", lane: 1, speed: 0.55 },
-  // Overtakes early on purpose: at 0.4 it drew level with the crash, which is
-  // also in the left lane, at 28m out, and drove straight through it.
-  { at: 395, body: "van", lane: -1, speed: 0.56 },
-  { at: 465, body: "pickup", lane: 0.35, speed: 0.48 },
-  { at: 540, body: "hatch", lane: 0, speed: 0.6 },
-  { at: 615, body: "sedan", lane: -1, speed: 0.52 },
-  { at: 690, body: "lorry", lane: 1, speed: 0.32 },
-  { at: 760, body: "suv", lane: 0.35, speed: 0.5 },
-  { at: 835, body: "sedan", lane: -0.35, speed: 0.54 },
-  { at: 910, body: "van", lane: 1, speed: 0.42 },
-  { at: 985, body: "lorry", lane: -1, speed: 0.34 },
-  { at: 1060, body: "hatch", lane: 0.35, speed: 0.56 },
-  { at: 1135, body: "pickup", lane: 0, speed: 0.46 },
-  { at: 1210, body: "sedan", lane: -0.35, speed: 0.52 },
-  { at: 1290, body: "suv", lane: 1, speed: 0.5 },
-]
 
 const RUN = 1400
 const CAM_H = 1.5
-const LANE = 3.6
 const FAR = 260
 
 export function DriveRoad({
@@ -92,55 +51,6 @@ export function DriveRoad({
     let w = 0
     let h = 0
 
-    /**
-     * Real renders for the two hazards that come closest to the camera.
-     *
-     * There used to be a third, a lead vehicle held in the near field. It was
-     * dropped: the render came back as a box trailer with a car's rear end
-     * grafted onto the bottom of it, and keying its background left a pale
-     * ghost that sat in the middle of the frame for the entire drive. A drawn
-     * lorry is both correct and controllable, so the lead is drawn now.
-     */
-    // Explicit keys rather than an index signature: with Record<string, _> every
-    // read is `possibly undefined` and needs bracket access, which buys nothing
-    // for a fixed set of two.
-    const sprites: {
-      police: HTMLImageElement | null
-      stalled: HTMLImageElement | null
-    } = { police: null, stalled: null }
-    for (const [name, file] of [
-      ["police", "police.webp"],
-      ["stalled", "stalled.webp"],
-    ] as const) {
-      const img = new Image()
-      img.onload = () => {
-        sprites[name] = img
-      }
-      img.src = `/vehicles/${file}`
-    }
-
-    /** Draws a keyed sprite standing on the road at `ground`, plus its contact
-     *  shadow. Width is given in metres so it scales with perspective like
-     *  everything else in the scene. */
-    const paintSprite = (
-      img: HTMLImageElement,
-      p: { x: number; y: number },
-      metres: number,
-      scale: number,
-    ) => {
-      const halfW = (metres / 2) * scale
-      const spriteH = halfW * 2 * (img.naturalHeight / img.naturalWidth)
-      ctx.globalCompositeOperation = "source-over"
-      const sh = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, halfW * 1.5)
-      sh.addColorStop(0, "rgba(0, 0, 0, 0.6)")
-      sh.addColorStop(1, "rgba(0, 0, 0, 0)")
-      ctx.fillStyle = sh
-      ctx.beginPath()
-      ctx.ellipse(p.x, p.y, halfW * 1.5, halfW * 0.34, 0, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.drawImage(img as CanvasImageSource, p.x - halfW, p.y - spriteH, halfW * 2, spriteH)
-    }
-
     const resize = () => {
       const rect = canvas.getBoundingClientRect()
       const dpr = Math.min(window.devicePixelRatio || 1, 2)
@@ -173,29 +83,6 @@ export function DriveRoad({
         offset += target * (moveIn - moveOut)
       }
       return offset
-    }
-
-    /**
-     * Where the lorry we are following sits, in metres across the carriageway.
-     *
-     * It runs in the left lane, which is the lane the crash blocks, so it has
-     * to get out of the way. It is not glued to us: it reaches each hazard
-     * first and moves at that hazard's distance, not ours, so you watch the
-     * vehicle ahead swing out and then follow it. That is the entire product in
-     * one gesture, and it is the reason the lead vehicle is worth having at all.
-     *
-     * Unlike the camera this is an object, so it can move a full lane without
-     * shearing anything.
-     */
-    const leadLateral = (ahead: number): number => {
-      let lat = -LANE
-      for (const ev of events) {
-        if (ev.lane !== -1) continue
-        const moveIn = smoothstep(ev.at - 150, ev.at - 45, ahead)
-        const moveOut = smoothstep(ev.at + 15, ev.at + 80, ahead)
-        lat += LANE * (moveIn - moveOut)
-      }
-      return lat
     }
 
     /**
@@ -498,161 +385,66 @@ export function DriveRoad({
       const sizeAt = (z: number, body: BodyType) =>
         vehicleScale(focal / Math.max(z, 0.6), body, { h, w })
 
-      // How hard our own headlights fall on the vehicle ahead. Full inside 12m,
-      // gone by 45m, which is roughly the reach of a dipped beam.
-      const litAt = (z: number) => 1 - smoothstep(12, 45, z)
-
-      const stride = tune.traffic >= 1 ? 1 : Math.max(1, Math.round(1 / Math.max(tune.traffic, 0.06)))
-      // Above 1 the extra pass interleaves a second set half a gap further on,
-      // faded in proportionally so the slider is continuous rather than a step.
-      const extra = Math.max(0, Math.min(tune.traffic - 1, 1))
-      const passes: Array<{ shift: number; weight: number }> = [{ shift: 0, weight: 1 }]
-      if (extra > 0.02) passes.push({ shift: 36, weight: extra })
-
-      for (const pass of passes)
-      for (const [ti, v] of TRAFFIC.entries()) {
-        if (ti % stride !== 0) continue
-        const z = v.at + pass.shift + travelled * v.speed - travelled
-        if (z <= 2.2 || z >= far * 0.85) continue
-        const fade = Math.max(0.12, 1 - z / (far * 0.85)) * pass.weight
-        const scale = sizeAt(z, v.body)
-        const p = proj(v.lane * LANE, z)
-        items.push({
-          z,
-          paint: () =>
-            drawVehicle(ctx, {
-              x: p.x,
-              ground: p.y,
-              scale,
-              fade,
-              body: v.body,
-              lit: litAt(z),
-              variant: ti,
-            }),
-        })
+      // One shared layout for the canvas and for the test that walks the whole
+      // run looking for two vehicles in the same place. Drawing from a second,
+      // parallel copy of this arithmetic is how the old version ended up with a
+      // lorry parked in the lane every left-hand car drove through.
+      const kindOf: Record<string, VehicleKind> = {
+        police: "police",
+        crash: "wreck",
+        stall: "stalled",
       }
 
-      for (const ev of events) {
-        const z = ev.at - travelled
-        if (z <= 2.2 || z >= far) continue
-        const fade = Math.min(1, Math.max(0.15, 1 - z / far) * tune.glow)
-        // The crash and the stall are saloons; the shoulder hazard the police
-        // are attending is one too. Debris borrows the sedan scale only to size
-        // its fragments.
-        const scale = sizeAt(z, "sedan")
-        const halfW = (PROFILES.sedan.widthM / 2) * scale
-        const bodyH = PROFILES.sedan.heightM * scale
+      for (const o of occupantsAt(travelled, events, tune.traffic)) {
+        const { z } = o
+        const p = proj(o.lateral, z)
 
-        if (ev.kind === "debris") {
-          const p = proj(ev.lane * LANE, z)
+        if (o.label === "debris") {
+          const scale = sizeAt(z, "sedan")
+          const fade = Math.min(1, Math.max(0.15, 1 - z / far) * tune.glow)
           items.push({
             z,
             paint: () => {
               drawDebris(ctx, { x: p.x, ground: p.y, scale: scale * 0.9, fade })
-              drawCones(ctx, { proj, lateral: ev.lane * LANE - 1.2, z: z + 6, count: 3, fade })
+              drawCones(ctx, { proj, lateral: o.lateral - 1.2, z: z + 6, count: 3, fade })
             },
           })
           continue
         }
 
-        const kindMap: Record<string, VehicleKind> = {
-          police: "police",
-          crash: "wreck",
-          stall: "stalled",
-        }
-        const kind = kindMap[ev.kind] ?? "stalled"
-        // On the shoulder, not in a live lane, except the crash which blocks one.
-        const lateral = ev.kind === "crash" ? ev.lane * LANE : ev.lane * LANE * 1.5
-        const p = proj(lateral, z)
-        const sprite = ev.kind === "police" ? sprites.police : ev.kind === "stall" ? sprites.stalled : null
+        const body = o.body ?? "sedan"
+        const scale = sizeAt(z, body)
+        const kind = kindOf[o.label]
+        // Hazards get the glow knob; ordinary traffic just fades into the haze.
+        const fade =
+          kind === undefined
+            ? Math.max(0.12, 1 - z / TRAFFIC_FAR)
+            : Math.min(1, Math.max(0.15, 1 - z / far) * tune.glow)
 
         items.push({
           z,
           paint: () => {
-            if (sprite !== null) {
-              // Real render for the hazards that get closest. The police sprite
-              // already carries a lit bar, so no coded bar over it.
-              paintSprite(sprite, p, ev.kind === "police" ? 2.1 : 1.9, focal / Math.max(z, 0.6))
-              if (ev.kind === "stall" && phase % 1 < 0.5) {
-                // The render came back with brake lights rather than the amber
-                // hazards that were asked for, so the flashers are drawn over
-                // it. Real bodywork, real flashing.
-                ctx.globalCompositeOperation = "lighter"
-                for (const side of [-1, 1]) {
-                  const hx = p.x + side * halfW * 0.85
-                  const hy = p.y - bodyH * 0.5
-                  const r = Math.min(Math.max(4, halfW * 1.1), 30)
-                  const g = ctx.createRadialGradient(hx, hy, 0, hx, hy, r)
-                  g.addColorStop(0, `rgba(255, 176, 0, ${0.85 * fade})`)
-                  g.addColorStop(1, "rgba(255, 176, 0, 0)")
-                  ctx.fillStyle = g
-                  ctx.beginPath()
-                  ctx.arc(hx, hy, r, 0, Math.PI * 2)
-                  ctx.fill()
-                }
-              }
-            } else {
-              drawVehicle(ctx, {
-                x: p.x,
-                ground: p.y,
-                scale,
-                fade,
-                body: "sedan",
-                kind,
-                lit: litAt(z),
-                phase,
-                variant: 2,
-              })
-            }
-            // A crash is two vehicles, the second askew behind the first. It is
-            // a 4x4, so the pile reads as two different vehicles rather than as
-            // one shape drawn twice.
-            if (ev.kind === "crash") {
-              const p2 = proj(lateral + 1.5, z + 7)
-              drawVehicle(ctx, {
-                x: p2.x,
-                ground: p2.y,
-                scale: sizeAt(z + 7, "suv"),
-                fade: fade * 0.9,
-                body: "suv",
-                kind: "wreck",
-                lit: litAt(z + 7),
-                phase: phase + 0.5,
-                variant: 4,
-              })
-              drawCones(ctx, { proj, lateral: lateral - 1.4, z: z + 10, count: 4, fade })
-            }
-            if (ev.kind === "police" || ev.kind === "stall") {
-              drawCones(ctx, { proj, lateral: lateral - ev.lane * 1.1, z: z + 8, count: 2, fade })
-            }
-          },
-        })
-      }
-
-      // The lead vehicle joins the same depth-sorted pass so hazards and traffic
-      // can pass in front of or behind it correctly.
-      //
-      // A lorry, drawn rather than composited: it is the one thing in frame the
-      // whole way down the page, so it has to be right, and a trailer's rear is
-      // mostly flat panel, door seams and marker lights, which draws better
-      // than it renders. Held in the left lane at 30m closing to about 24m; at
-      // 17m it filled the centre of the frame and hid both the road and the
-      // hazards, which made it the subject instead of the context.
-      const lz = 30 - travelled * 0.0043
-      if (lz > 7) {
-        const p = proj(leadLateral(travelled + lz), lz)
-        items.push({
-          z: lz,
-          paint: () =>
             drawVehicle(ctx, {
               x: p.x,
               ground: p.y,
-              scale: sizeAt(lz, "lorry"),
-              fade: 1,
-              body: "lorry",
-              lit: litAt(lz),
-              variant: 5,
-            }),
+              scale,
+              fade,
+              body,
+              kind: kind ?? "moving",
+              lit: o.lit ?? 0,
+              phase: o.label === "crash second vehicle" ? phase + 0.5 : phase,
+              variant: o.variant ?? 0,
+            })
+            // Cones taper the closure behind anything stopped. They start
+            // beside the vehicle and lead back out to the edge line, which is
+            // the direction a real taper runs; drawn the other way they sat in
+            // a live lane looking like the road was closed.
+            if (o.label === "crash") {
+              drawCones(ctx, { proj, lateral: o.lateral - 1.6, z: z + 10, count: 4, fade })
+            } else if (o.label === "police" || o.label === "stall") {
+              drawCones(ctx, { proj, lateral: o.lateral + 0.4, z: z + 8, count: 3, fade })
+            }
+          },
         })
       }
 
