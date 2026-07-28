@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef } from "react"
-import { useScroll } from "motion/react"
+import { useScroll, type MotionValue } from "motion/react"
 import { usePrefersReducedMotion } from "./usePrefersReducedMotion"
 import { drawCones, drawDebris, drawVehicle, smoothstep, type VehicleKind } from "./drawScene"
 
@@ -44,10 +44,16 @@ export function DriveRoad({
   events,
   className = "",
   targetRef,
+  distanceOut,
 }: {
   readonly events: readonly DriveEvent[]
   readonly className?: string
   readonly targetRef: React.RefObject<HTMLElement | null>
+  /** Metres travelled, published each frame. The alert cards key off this
+   *  rather than off scroll progress: pacing makes distance a non-linear
+   *  function of progress, so anything deriving its own distance from progress
+   *  would drift out of step with the hazard it describes. */
+  readonly distanceOut?: MotionValue<number>
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const reduce = usePrefersReducedMotion()
@@ -193,6 +199,64 @@ export function DriveRoad({
     readTunables()
     const tuneTimer = window.setInterval(readTunables, 250)
 
+    /**
+     * Scroll-to-distance curve, so the drive slows as it reaches each hazard.
+     *
+     * A linear mapping meant you were warned about something and then covered
+     * the last 200m of it in a few pixels of scroll, which wasted the payoff of
+     * the warning. Here the travel rate dips around every event, so the same
+     * scroll buys less distance near a hazard and you actually watch it arrive
+     * and pass.
+     *
+     * Built as a lookup table: define a speed profile over distance, integrate
+     * 1/speed to get scroll cost, normalise, then invert. Doing it numerically
+     * once is far simpler than solving the inverse analytically, and 512 samples
+     * is smooth well past the precision a scrollbar can express.
+     */
+    const SAMPLES = 512
+    const buildPacing = (run: number) => {
+      const table = new Float64Array(SAMPLES + 1)
+      let acc = 0
+      for (let i = 0; i <= SAMPLES; i += 1) {
+        const d = (i / SAMPLES) * run
+        // Slowest right at the hazard, easing back to full speed either side.
+        let slow = 0
+        for (const ev of events) {
+          const t = (d - ev.at) / 130
+          slow += 0.62 * Math.exp(-t * t)
+        }
+        const speed = Math.max(0.25, 1 - Math.min(slow, 0.75))
+        acc += 1 / speed
+        table[i] = acc
+      }
+      const total = table[SAMPLES] ?? 1
+      for (let i = 0; i <= SAMPLES; i += 1) table[i] = (table[i] ?? 0) / total
+      return table
+    }
+
+    let pacing = buildPacing(tune.run)
+    let pacingRun = tune.run
+
+    /** progress 0..1 -> metres travelled, via the inverse of the pacing table. */
+    const distanceFor = (progress: number, run: number) => {
+      if (run !== pacingRun) {
+        pacing = buildPacing(run)
+        pacingRun = run
+      }
+      const p = Math.min(1, Math.max(0, progress))
+      let lo = 0
+      let hi = SAMPLES
+      while (hi - lo > 1) {
+        const mid = (lo + hi) >> 1
+        if ((pacing[mid] ?? 0) < p) lo = mid
+        else hi = mid
+      }
+      const a = pacing[lo] ?? 0
+      const b = pacing[hi] ?? 1
+      const frac = b === a ? 0 : (p - a) / (b - a)
+      return ((lo + frac) / SAMPLES) * run
+    }
+
     const draw = (travelled: number, nowMs: number) => {
       const far = tune.fog
       const horizon = h * tune.horizon
@@ -333,7 +397,7 @@ export function DriveRoad({
       for (const [ti, v] of TRAFFIC.entries()) {
         if (ti % stride !== 0) continue
         const z = v.at + pass.shift + travelled * v.speed - travelled
-        if (z <= 16 || z >= far * 0.85) continue
+        if (z <= 2.2 || z >= far * 0.85) continue
         const fade = Math.max(0.12, 1 - z / (far * 0.85)) * pass.weight
         const { halfW, bodyH } = sizeAt(z, v.truck === true)
         const p = proj(v.lane * LANE, z)
@@ -353,7 +417,7 @@ export function DriveRoad({
 
       for (const ev of events) {
         const z = ev.at - travelled
-        if (z <= 6 || z >= far) continue
+        if (z <= 2.2 || z >= far) continue
         const fade = Math.min(1, Math.max(0.15, 1 - z / far) * tune.glow)
         const { halfW, bodyH, scale } = sizeAt(z, false)
 
@@ -463,7 +527,9 @@ export function DriveRoad({
     const frame = (now: number) => {
       raf = requestAnimationFrame(frame)
       if (!onScreen || document.visibilityState !== "visible") return
-      draw(scrollYProgress.get() * tune.run, now)
+      const travelled = distanceFor(scrollYProgress.get(), tune.run)
+      distanceOut?.set(travelled)
+      draw(travelled, now)
     }
 
     resize()
@@ -491,7 +557,7 @@ export function DriveRoad({
       io.disconnect()
       window.removeEventListener("resize", onResize)
     }
-  }, [reduce, events, scrollYProgress])
+  }, [reduce, events, scrollYProgress, distanceOut])
 
   return <canvas aria-hidden="true" className={className} ref={canvasRef} />
 }

@@ -1,10 +1,8 @@
 "use client"
 
 import { useRef } from "react"
-import { motion, useScroll, useTransform } from "motion/react"
+import { motion, useMotionValue, useTransform } from "motion/react"
 import { DriveRoad, type DriveEvent } from "@/components/motion/DriveRoad"
-
-const RUN = 1400
 
 const EVENTS: readonly DriveEvent[] = [
   { at: 300, lane: 1, kind: "police", label: "Police vehicle" },
@@ -51,21 +49,24 @@ const CARDS = [
 
 function AlertCard({
   card,
-  progress,
+  distance,
 }: {
   readonly card: (typeof CARDS)[number]
-  readonly progress: ReturnType<typeof useScroll>["scrollYProgress"]
+  /** Metres travelled. Pacing makes this non-linear in scroll progress, so the
+   *  card has to read the same distance the road is drawing or it drifts away
+   *  from the hazard it is describing. */
+  readonly distance: ReturnType<typeof useMotionValue<number>>
 }) {
   // A 240m window that closes exactly as you reach the hazard: warned, then you
   // pass it. The previous 370m window overlapped its neighbour (hazards are only
   // 280m to 340m apart), so two cards were on screen at once and stacked on top
   // of each other. These windows leave a clear 60m to 100m gap between cards.
   const opacity = useTransform(
-    progress,
-    [(card.at - 240) / RUN, (card.at - 170) / RUN, (card.at - 40) / RUN, card.at / RUN],
+    distance,
+    [card.at - 240, card.at - 170, card.at - 40, card.at],
     [0, 1, 1, 0],
   )
-  const y = useTransform(progress, [(card.at - 240) / RUN, (card.at - 170) / RUN], [26, 0])
+  const y = useTransform(distance, [card.at - 240, card.at - 170], [26, 0])
 
   return (
     <motion.div className="drive-card" style={{ opacity, y }}>
@@ -80,7 +81,7 @@ function AlertCard({
 
 export function DriveChapter() {
   const run = useRef<HTMLElement>(null)
-  const { scrollYProgress } = useScroll({ target: run, offset: ["start start", "end end"] })
+  const distance = useMotionValue(0)
 
   return (
     <section className="chapter-drive" id="the-drive" ref={run}>
@@ -101,12 +102,17 @@ export function DriveChapter() {
       </div>
 
       <div className="drive-view">
-        <DriveRoad className="drive-canvas" events={EVENTS} targetRef={run} />
+        <DriveRoad
+          className="drive-canvas"
+          distanceOut={distance}
+          events={EVENTS}
+          targetRef={run}
+        />
 
         {/* The readable layer is a plain high-contrast plate, never text sitting
             raw on the moving scene (Ch2.4). */}
         {CARDS.map((card) => (
-          <AlertCard card={card} key={card.at} progress={scrollYProgress} />
+          <AlertCard card={card} distance={distance} key={card.at} />
         ))}
 
         <p className="drive-note" data-illustration-note>
