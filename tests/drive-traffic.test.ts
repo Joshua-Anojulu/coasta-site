@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest"
-import { LANE, lateralOf, occupantsAt, TRAFFIC, type DriveEvent } from "@/components/motion/traffic"
+import {
+  LANE,
+  lateralOf,
+  occupantsAt,
+  oncomingAt,
+  TRAFFIC,
+  type DriveEvent,
+} from "@/components/motion/traffic"
 
 /** The same four hazards DriveChapter renders. */
 const EVENTS: readonly DriveEvent[] = [
@@ -115,5 +122,38 @@ describe("the drive is physically possible", () => {
     }
     expect(occupied / (RUN + 1)).toBeGreaterThan(0.95)
     expect(longestGap).toBeLessThan(60)
+  })
+})
+
+describe("the far carriageway", () => {
+  it("never lets two oncoming vehicles occupy the same place", () => {
+    // They recycle on a fixed period at more than twice our closing speed, so a
+    // spacing mistake here shows up as two headlight pairs merging into one.
+    for (let travelled = 0; travelled <= RUN; travelled += 1) {
+      const here = oncomingAt(travelled)
+      for (let i = 0; i < here.length; i += 1) {
+        for (let j = i + 1; j < here.length; j += 1) {
+          const a = here[i]!
+          const b = here[j]!
+          if (Math.abs(a.lateral - b.lateral) > 2) continue
+          expect(
+            Math.abs(a.z - b.z),
+            `oncoming pair overlaps at ${travelled}m (z ${a.z.toFixed(1)}/${b.z.toFixed(1)})`,
+          ).toBeGreaterThan(6)
+        }
+      }
+    }
+  })
+
+  it("keeps the far carriageway clear of ours", () => {
+    // The median has to be wide enough that an oncoming vehicle can never be
+    // mistaken for something in our outside lane.
+    for (let travelled = 0; travelled <= RUN; travelled += 20) {
+      for (const on of oncomingAt(travelled)) {
+        for (const ours of occupantsAt(travelled, EVENTS, 2)) {
+          expect(Math.abs(on.lateral - ours.lateral)).toBeGreaterThan(3.5)
+        }
+      }
+    }
   })
 })

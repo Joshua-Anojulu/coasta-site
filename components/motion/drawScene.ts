@@ -41,6 +41,11 @@ type Profile = {
   lamp: LampStyle
   /** Lamp centre height, as a fraction of total height. */
   lampY: number
+  /** How much of the beam this body returns. A van or a trailer is a big flat
+   *  slab well outside the hot spot of a dipped beam, so it comes back darker
+   *  than a car does however pale it is painted. Without this a white van at
+   *  ten metres is the brightest thing on the page. */
+  reflect: number
 }
 
 /**
@@ -52,12 +57,12 @@ type Profile = {
  * rectangles on a rounded box.
  */
 export const PROFILES: Record<BodyType, Profile> = {
-  sedan: { belt: 0.52, crown: 0.05, glass: 0.34, heightM: 1.46, lamp: "block", lampY: 0.34, lengthM: 4.7, roof: 0.54, widthM: 1.84 },
-  hatch: { belt: 0.5, crown: 0.04, glass: 0.36, heightM: 1.52, lamp: "tall", lampY: 0.46, lengthM: 4.1, roof: 0.62, widthM: 1.76 },
-  suv: { belt: 0.5, crown: 0.03, glass: 0.38, heightM: 1.78, lamp: "tall", lampY: 0.5, lengthM: 4.8, roof: 0.78, widthM: 1.94 },
-  pickup: { belt: 0.62, crown: 0.02, glass: 0.22, heightM: 1.9, lamp: "corner", lampY: 0.3, lengthM: 5.8, roof: 0.58, widthM: 2.02 },
-  van: { belt: 0.62, crown: 0.02, glass: 0.16, heightM: 2.4, lamp: "tall", lampY: 0.32, lengthM: 5.4, roof: 0.9, widthM: 2 },
-  lorry: { belt: 0.9, crown: 0.01, glass: 0, heightM: 3.9, lamp: "cluster", lampY: 0.08, lengthM: 16.5, roof: 0.97, widthM: 2.55 },
+  sedan: { belt: 0.52, crown: 0.05, glass: 0.34, heightM: 1.46, lamp: "block", lampY: 0.34, lengthM: 4.7, reflect: 1, roof: 0.54, widthM: 1.84 },
+  hatch: { belt: 0.5, crown: 0.04, glass: 0.36, heightM: 1.52, lamp: "tall", lampY: 0.46, lengthM: 4.1, reflect: 1, roof: 0.62, widthM: 1.76 },
+  suv: { belt: 0.5, crown: 0.03, glass: 0.38, heightM: 1.78, lamp: "tall", lampY: 0.5, lengthM: 4.8, reflect: 0.88, roof: 0.78, widthM: 1.94 },
+  pickup: { belt: 0.62, crown: 0.02, glass: 0.22, heightM: 1.9, lamp: "corner", lampY: 0.3, lengthM: 5.8, reflect: 0.82, roof: 0.58, widthM: 2.02 },
+  van: { belt: 0.62, crown: 0.02, glass: 0.16, heightM: 2.4, lamp: "tall", lampY: 0.32, lengthM: 5.4, reflect: 0.72, roof: 0.9, widthM: 2 },
+  lorry: { belt: 0.9, crown: 0.01, glass: 0, heightM: 3.9, lamp: "cluster", lampY: 0.08, lengthM: 16.5, reflect: 0.66, roof: 0.97, widthM: 2.55 },
 }
 
 /**
@@ -156,7 +161,7 @@ export function drawVehicle(
   const roofHalf = halfW * p.roof
   const paint = PAINTS[Math.abs(opts.variant ?? 0) % PAINTS.length] ?? PAINTS[0]!
   // The whole colour model: paint times the light landing on it.
-  const k = AMBIENT + BEAM * lit
+  const k = AMBIENT + BEAM * lit * p.reflect
   const body0 = Math.round(paint[0] * k)
   const body1 = Math.round(paint[1] * k)
   const body2 = Math.round(paint[2] * k)
@@ -193,7 +198,7 @@ export function drawVehicle(
   // the lower body takes the beam. Filled flat, a silver car at ten metres came
   // out as a pale bar of soap with no form in it at all.
   const shade = ctx.createLinearGradient(x, roofY, x, ground)
-  const roofK = AMBIENT + BEAM * lit * 0.28
+  const roofK = AMBIENT + BEAM * lit * p.reflect * 0.28
   shade.addColorStop(0, `rgb(${Math.round(paint[0] * roofK)}, ${Math.round(paint[1] * roofK)}, ${Math.round(paint[2] * roofK)})`)
   shade.addColorStop(0.62, `rgb(${body0}, ${body1}, ${body2})`)
   shade.addColorStop(1, `rgb(${Math.round(body0 * 0.7)}, ${Math.round(body1 * 0.7)}, ${Math.round(body2 * 0.7)})`)
@@ -427,6 +432,110 @@ function drawLamps(
       ctx.fill()
     }
   }
+}
+
+/**
+ * A vehicle on the far carriageway, coming the other way.
+ *
+ * Nothing but the lamps and their glare, because that is genuinely all you see:
+ * our headlights do not reach across the median, so the body is a silhouette
+ * against the sky and everything readable about it is the pair of lights and
+ * the mess they make of the air. Drawing this like a rear view with the colours
+ * swapped would be a rendering of a car; this is a rendering of what a driver
+ * actually sees.
+ */
+export function drawOncoming(
+  ctx: Ctx,
+  opts: { x: number; ground: number; scale: number; fade: number },
+): void {
+  const { x, ground, scale, fade } = opts
+  const halfW = 0.9 * scale
+  const height = 1.5 * scale
+  const lampY = ground - height * 0.42
+  const lampR = Math.min(Math.max(2.5, halfW * 1.5), 34)
+
+  // The silhouette, barely separated from the night behind it.
+  ctx.globalCompositeOperation = "source-over"
+  ctx.fillStyle = `rgba(8, 10, 14, ${0.75 * fade})`
+  ctx.beginPath()
+  ctx.moveTo(x - halfW, ground)
+  ctx.lineTo(x - halfW * 0.94, ground - height * 0.52)
+  ctx.quadraticCurveTo(x, ground - height * 1.02, x + halfW * 0.94, ground - height * 0.52)
+  ctx.lineTo(x + halfW, ground)
+  ctx.closePath()
+  ctx.fill()
+
+  ctx.globalCompositeOperation = "lighter"
+
+  // The wash the beams throw onto the surface in front of them, which is what
+  // stops the lamps reading as two stickers floating in the dark.
+  const spill = ctx.createRadialGradient(x, ground, 0, x, ground, lampR * 2.4)
+  spill.addColorStop(0, `rgba(150, 178, 214, ${0.2 * fade})`)
+  spill.addColorStop(1, "rgba(150, 178, 214, 0)")
+  ctx.fillStyle = spill
+  ctx.beginPath()
+  ctx.ellipse(x, ground, lampR * 2.4, lampR * 0.8, 0, 0, Math.PI * 2)
+  ctx.fill()
+
+  for (const side of [-1, 1]) {
+    const lx = x + side * halfW * 0.66
+    const glare = ctx.createRadialGradient(lx, lampY, 0, lx, lampY, lampR * 2.6)
+    glare.addColorStop(0, `rgba(214, 230, 255, ${0.62 * fade})`)
+    glare.addColorStop(0.35, `rgba(170, 200, 250, ${0.2 * fade})`)
+    glare.addColorStop(1, "rgba(150, 185, 245, 0)")
+    ctx.fillStyle = glare
+    ctx.beginPath()
+    ctx.arc(lx, lampY, lampR * 2.6, 0, Math.PI * 2)
+    ctx.fill()
+
+    ctx.fillStyle = `rgba(246, 250, 255, ${Math.min(1, 0.7 + fade * 0.3)})`
+    ctx.beginPath()
+    ctx.arc(lx, lampY, Math.max(0.7, halfW * 0.22), 0, Math.PI * 2)
+    ctx.fill()
+  }
+}
+
+/**
+ * The median barrier, drawn as one continuous run with posts.
+ *
+ * It is the fastest-moving thing in the frame, so it carries the speed cue the
+ * lane dashes alone were carrying, and it gives the oncoming traffic something
+ * to be on the other side of.
+ */
+export function drawBarrier(
+  ctx: Ctx,
+  opts: { proj: Projector; lateral: number; from: number; to: number; fade: number },
+): void {
+  const { proj, lateral, from, to } = opts
+  ctx.globalCompositeOperation = "source-over"
+
+  // The rail: two lines, top and bottom, filled between.
+  const railTop: Array<{ x: number; y: number }> = []
+  const railBottom: Array<{ x: number; y: number }> = []
+  for (let z = from; z <= to; z += 4) {
+    const base = proj(lateral, z)
+    const lift = (0.78 * (proj(0, 1).y - proj(0, 2).y)) / z
+    railTop.push({ x: base.x, y: base.y - lift })
+    railBottom.push(base)
+  }
+  if (railTop.length < 2) return
+
+  ctx.beginPath()
+  railTop.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)))
+  for (let i = railBottom.length - 1; i >= 0; i -= 1) {
+    const p = railBottom[i]!
+    ctx.lineTo(p.x, p.y)
+  }
+  ctx.closePath()
+  ctx.fillStyle = "rgba(38, 46, 58, 0.9)"
+  ctx.fill()
+
+  // The reflective strip along the top, catching the gantry light.
+  ctx.beginPath()
+  railTop.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)))
+  ctx.strokeStyle = "rgba(168, 198, 226, 0.38)"
+  ctx.lineWidth = 1.6
+  ctx.stroke()
 }
 
 /**

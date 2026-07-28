@@ -94,6 +94,51 @@ export const TRAFFIC: readonly TrafficEntry[] = [
   { at: 1270, body: "suv", lane: -1, speed: 0.62, variant: 8 },
 ]
 
+/**
+ * The other side of the road.
+ *
+ * A motorway at night with nothing coming the other way is the emptiest thing
+ * on it, and no amount of work on our own carriageway fixes that: the traffic
+ * we overtake all recedes, so nothing ever comes towards you. Oncoming
+ * headlights are the only element in the scene with real closing speed, which
+ * is what makes the road feel travelled rather than staged.
+ *
+ * It is a recycling stream rather than a table. These pass at more than twice
+ * our speed, so a fixed list would empty within a few hundred metres, and they
+ * are far enough away and small enough that the loop is invisible. Every
+ * vehicle in a lane runs at the same speed, which is what makes it impossible
+ * for two of them to ever occupy the same place.
+ */
+export const MEDIAN = -LANE * 2.55
+const ONCOMING_PERIOD = 320
+
+export const ONCOMING: ReadonlyArray<{
+  readonly lane: number
+  readonly speed: number
+  readonly slots: readonly number[]
+}> = [
+  // Nearest oncoming lane, then the far one, which runs quicker.
+  { lane: MEDIAN - LANE * 1.15, slots: [40, 150, 246], speed: 1.05 },
+  { lane: MEDIAN - LANE * 2.15, slots: [95, 205, 300], speed: 1.35 },
+]
+
+export type Oncoming = { readonly lateral: number; readonly z: number }
+
+/** Oncoming vehicles near enough to draw, nearest last. */
+export function oncomingAt(travelled: number): Oncoming[] {
+  const out: Oncoming[] = []
+  for (const lane of ONCOMING) {
+    // Closing rate is 1 + speed, because we are travelling towards each other.
+    const shift = travelled * (1 + lane.speed)
+    for (const slot of lane.slots) {
+      const z = (((slot - shift) % ONCOMING_PERIOD) + ONCOMING_PERIOD) % ONCOMING_PERIOD
+      if (z < 4 || z > 250) continue
+      out.push({ lateral: lane.lane, z })
+    }
+  }
+  return out.sort((a, b) => b.z - a.z)
+}
+
 /** Anything standing on the carriageway, in world coordinates. */
 export type Occupant = {
   /** Metres from the centre line, positive to the right. */

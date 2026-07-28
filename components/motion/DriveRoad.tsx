@@ -4,14 +4,24 @@ import { useEffect, useRef } from "react"
 import { useScroll, type MotionValue } from "motion/react"
 import { usePrefersReducedMotion } from "./usePrefersReducedMotion"
 import {
+  drawBarrier,
   drawCones,
   drawDebris,
+  drawOncoming,
   drawVehicle,
   vehicleScale,
   type BodyType,
   type VehicleKind,
 } from "./drawScene"
-import { LANE, occupantsAt, smoothstep, TRAFFIC_FAR, type DriveEvent } from "./traffic"
+import {
+  LANE,
+  MEDIAN,
+  occupantsAt,
+  oncomingAt,
+  smoothstep,
+  TRAFFIC_FAR,
+  type DriveEvent,
+} from "./traffic"
 
 export type { DriveEvent }
 
@@ -344,6 +354,43 @@ export function DriveRoad({
         ctx.strokeStyle = "rgba(190, 220, 245, 0.42)"
         ctx.lineWidth = 2
         ctx.stroke()
+      }
+
+      // The far carriageway. Its own surface first, unlit: our headlights stop
+      // at the barrier, so the other side is only ever sky-lit and reads darker
+      // than the road under us. Without it the oncoming traffic drives along on
+      // nothing.
+      ctx.globalCompositeOperation = "source-over"
+      const farNear = proj(MEDIAN, 1.2)
+      const farOuter = proj(MEDIAN - LANE * 3.2, 1.2)
+      const farNearFog = proj(MEDIAN, far)
+      const farOuterFog = proj(MEDIAN - LANE * 3.2, far)
+      ctx.beginPath()
+      ctx.moveTo(farNear.x, farNear.y)
+      ctx.lineTo(farOuter.x, farOuter.y)
+      ctx.lineTo(farOuterFog.x, farOuterFog.y)
+      ctx.lineTo(farNearFog.x, farNearFog.y)
+      ctx.closePath()
+      const farRoad = ctx.createLinearGradient(0, horizon, 0, h)
+      farRoad.addColorStop(0, "#080c12")
+      farRoad.addColorStop(1, "#101720")
+      ctx.fillStyle = farRoad
+      ctx.fill()
+
+      // Barrier, then whatever is coming the other way behind it. Both sit
+      // under the gantries and under our own traffic, because everything over
+      // there is further away than everything here.
+      drawBarrier(ctx, { proj, lateral: MEDIAN, from: 4, to: Math.min(far, 200), fade: 1 })
+
+      for (const on of oncomingAt(travelled)) {
+        const s = focal / Math.max(on.z, 0.6)
+        const p = proj(on.lateral, on.z)
+        drawOncoming(ctx, {
+          x: p.x,
+          ground: p.y,
+          scale: Math.min(s, (w * 0.16) / 1.8),
+          fade: Math.max(0.1, 1 - on.z / 250),
+        })
       }
 
       // Gantries: the speed cue.
