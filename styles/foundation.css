@@ -256,6 +256,6 @@ picture {
 :root {
   --drive-steer: 2.5;
   --drive-lamp: 1.6;
-  --drive-traffic: 2;
+  --drive-traffic: 1.5;
   --section-y: 9.5rem;
 }

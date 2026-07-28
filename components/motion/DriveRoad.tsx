@@ -5,6 +5,7 @@ import { useScroll, type MotionValue } from "motion/react"
 import { usePrefersReducedMotion } from "./usePrefersReducedMotion"
 import {
   drawBarrier,
+  drawCameraMast,
   drawCones,
   drawDebris,
   drawOncoming,
@@ -332,6 +333,41 @@ export function DriveRoad({
         }
       }
 
+      // Road studs. They are what a dipped beam actually picks out on a dark
+      // road: the paint barely returns anything at distance, and the line of
+      // light running away from you is reflectors, not markings. They also give
+      // the headlight wash something to land on, which is what stops it reading
+      // as a grey shape laid over the tarmac.
+      ctx.globalCompositeOperation = "lighter"
+      const STUD = 9
+      for (const [lateral, rgb] of [
+        [-LANE / 2, "236, 244, 252"],
+        [LANE / 2, "236, 244, 252"],
+        [-LANE * 1.5, "255, 206, 120"],
+        [LANE * 1.5, "255, 206, 120"],
+      ] as const) {
+        for (let k = 0; k < 30; k += 1) {
+          const z = k * STUD - (travelled % STUD)
+          if (z < 2.5 || z > 150) continue
+          const p = proj(lateral, z)
+          // Bright inside the beam, fading to nothing once the light no longer
+          // reaches: a reflector has no output of its own.
+          const hit = (1 - smoothstep(14, 96, z)) * Math.max(0, 1 - z / 150)
+          if (hit < 0.02) continue
+          // A cat's eye is about a hand's width. Sized off the beam instead of
+          // off the object, the near ones came out as glowing beach balls.
+          const r = Math.min(Math.max(0.6, (0.055 * focal) / z), 7)
+          const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 2.6)
+          g.addColorStop(0, `rgba(${rgb}, ${0.85 * hit})`)
+          g.addColorStop(0.45, `rgba(${rgb}, ${0.18 * hit})`)
+          g.addColorStop(1, `rgba(${rgb}, 0)`)
+          ctx.fillStyle = g
+          ctx.beginPath()
+          ctx.arc(p.x, p.y, r * 2.6, 0, Math.PI * 2)
+          ctx.fill()
+        }
+      }
+
       // Ground haze. The sky gradient stopped dead at the horizon and the road
       // began there in near-black, which drew a hard line straight across the
       // frame. Real distance ends in air, not in an edge.
@@ -390,6 +426,24 @@ export function DriveRoad({
           ground: p.y,
           scale: Math.min(s, (w * 0.16) / 1.8),
           fade: Math.max(0.1, 1 - on.z / 250),
+        })
+      }
+
+      // Coasta's own cameras, on the right verge, on their own spacing so they
+      // never line up with the lighting columns.
+      const CAM_GAP = 95
+      for (let k = 0; k < 5; k += 1) {
+        const z = k * CAM_GAP - (travelled % CAM_GAP)
+        if (z < 7 || z > far * 0.8) continue
+        drawCameraMast(ctx, {
+          proj,
+          lateral: LANE * 2.2,
+          z,
+          reach: 1,
+          fade: Math.max(0, 1 - z / (far * 0.8)),
+          // Each mast blinks on its own offset, so they are separate devices
+          // rather than one thing repeated.
+          phase: phase + k * 0.37,
         })
       }
 

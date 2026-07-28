@@ -203,11 +203,18 @@ export function occupantsAt(
   const out: Occupant[] = []
 
   const stride = density >= 1 ? 1 : Math.max(1, Math.round(1 / Math.max(density, 0.06)))
-  const shifts = density > 1.02 ? [0, 36] : [0]
+  // Above 1, a second set is interleaved half a gap further on, and `extra` is
+  // how much of it appears. It selects a subset rather than fading one in:
+  // these are solid objects, and a half-opacity lorry is a ghost, not less
+  // traffic. The golden-ratio sequence spreads whatever fraction is asked for
+  // evenly along the run instead of clumping it at one end.
+  const extra = Math.max(0, Math.min(density - 1, 1))
+  const shifts = extra > 0.02 ? [0, 36] : [0]
 
   for (const shift of shifts) {
     for (const [i, v] of TRAFFIC.entries()) {
       if (i % stride !== 0) continue
+      if (shift !== 0 && ((i * 0.618_033_988_75) % 1) >= extra) continue
       const z = v.at + shift - travelled * (1 - v.speed)
       if (z <= NEAR_CULL || z >= TRAFFIC_FAR) continue
       const p = PROFILES[v.body]

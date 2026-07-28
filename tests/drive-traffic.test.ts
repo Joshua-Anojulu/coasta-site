@@ -28,7 +28,7 @@ describe("the drive is physically possible", () => {
   it("never puts two vehicles in the same place, at either traffic density", () => {
     const failures: string[] = []
 
-    for (const density of [1, 2]) {
+    for (const density of [1, 1.5, 2]) {
       for (let travelled = 0; travelled <= RUN; travelled += 1) {
         const here = occupantsAt(travelled, EVENTS, density)
         for (let i = 0; i < here.length; i += 1) {
@@ -101,6 +101,15 @@ describe("the drive is physically possible", () => {
     const shoulder = occupantsAt(200, EVENTS, 2).find((o) => o.label === "police")
     expect(shoulder).toBeDefined()
     expect(Math.abs(shoulder!.lateral) - LANE).toBeGreaterThan((2.55 + 1.84) / 2)
+  })
+
+  it("makes the density knob interpolate rather than step", () => {
+    // 1.5 used to be identical to 2: anything over 1.02 got the whole second
+    // set. A knob with two positions pretending to have a range is worse than
+    // one with two positions.
+    const at = (d: number) => occupantsAt(700, EVENTS, d).length
+    expect(at(1)).toBeLessThan(at(1.5))
+    expect(at(1.5)).toBeLessThan(at(2))
   })
 
   it("keeps something in the near field almost the whole way down", () => {

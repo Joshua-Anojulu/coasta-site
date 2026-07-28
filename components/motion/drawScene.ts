@@ -496,6 +496,80 @@ export function drawOncoming(
 }
 
 /**
+ * A roadside camera on its mast.
+ *
+ * The one piece of furniture on this road that is actually the product. Coasta
+ * reads cameras that are already pointed at the carriageway, and until now the
+ * world contained gantries, lamps, barriers and traffic but not a single one of
+ * the things the whole page is about. Passing them is the quietest possible way
+ * to make the claim, and it is the same claim the contrast table makes in
+ * words: the camera is watching that road whether anyone is on it or not.
+ *
+ * Its status lamp blinks on a slow cycle rather than flashing at you. It is
+ * infrastructure, not an alert.
+ */
+export function drawCameraMast(
+  ctx: Ctx,
+  opts: {
+    proj: Projector
+    lateral: number
+    z: number
+    /** Which way the arm reaches. -1 leans left, 1 leans right. */
+    reach: number
+    fade: number
+    phase: number
+  },
+): void {
+  const { proj, lateral, z, reach, fade, phase } = opts
+  const base = proj(lateral, z)
+  const perMetre = (proj(0, 1).y - proj(0, 2).y) / z
+  const headY = base.y - perMetre * 7
+  const armX = base.x - reach * perMetre * 2.2
+  const line = Math.max(1.1, perMetre * 0.17)
+
+  ctx.globalCompositeOperation = "source-over"
+  // Brighter and heavier than a lighting column. It sits among them, and at a
+  // column's weight it read as one more lamp post with the bulb missing.
+  ctx.strokeStyle = `rgba(150, 176, 200, ${0.8 * fade})`
+  ctx.lineWidth = line
+  ctx.lineCap = "butt"
+  ctx.beginPath()
+  ctx.moveTo(base.x, base.y)
+  ctx.lineTo(base.x, headY)
+  ctx.lineTo(armX, headY)
+  ctx.stroke()
+
+  // The housing: a small box under the arm with a hood over the lens.
+  const boxW = Math.max(3, perMetre * 1.05)
+  const boxH = Math.max(1.8, boxW * 0.46)
+  // Housing, then the hood over the lens that overhangs it. The overhang is
+  // the whole silhouette: it is what says camera rather than lamp.
+  ctx.fillStyle = `rgba(24, 30, 39, ${0.95 * fade})`
+  ctx.fillRect(armX - boxW / 2, headY, boxW, boxH)
+  ctx.fillStyle = `rgba(74, 88, 104, ${0.95 * fade})`
+  ctx.fillRect(armX - boxW * 0.66, headY - boxH * 0.34, boxW * 1.32, boxH * 0.36)
+  // The lens, looking back up the carriageway.
+  ctx.fillStyle = `rgba(12, 16, 22, ${0.95 * fade})`
+  ctx.fillRect(armX - boxW * 0.5, headY + boxH * 0.2, boxW * 0.34, boxH * 0.5)
+
+  // Status lamp. Slow, small, and never the brightest thing in frame.
+  if (boxW > 2.4) {
+    const on = phase % 1 < 0.3
+    const r = Math.max(0.9, boxW * 0.13)
+    ctx.globalCompositeOperation = "lighter"
+    const g = ctx.createRadialGradient(armX + boxW * 0.3, headY + boxH * 0.5, 0, armX + boxW * 0.3, headY + boxH * 0.5, r * 5)
+    const rgb = on ? "120, 235, 170" : "40, 90, 70"
+    g.addColorStop(0, `rgba(${rgb}, ${0.85 * fade})`)
+    g.addColorStop(1, `rgba(${rgb}, 0)`)
+    ctx.fillStyle = g
+    ctx.beginPath()
+    ctx.arc(armX + boxW * 0.3, headY + boxH * 0.5, r * 5, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.globalCompositeOperation = "source-over"
+  }
+}
+
+/**
  * The median barrier, drawn as one continuous run with posts.
  *
  * It is the fastest-moving thing in the frame, so it carries the speed cue the

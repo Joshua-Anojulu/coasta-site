@@ -4,11 +4,6 @@
   overflow: clip;
 }
 
-.chapter-dark {
-  background: var(--color-ground);
-  color: var(--color-phosphor);
-}
-
 .chapter-light {
   background: var(--color-plate);
   color: var(--color-plate-ink);
@@ -26,13 +21,7 @@
   max-width: 780px;
 }
 
-.chapter-heading--dark {
-  color: var(--color-phosphor);
-}
-
-.chapter-kicker,
-.approach__meta,
-.timecode {
+.chapter-kicker {
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 500;
@@ -43,10 +32,6 @@
   display: inline-block;
   margin-bottom: 28px;
   color: var(--color-plate-dim);
-}
-
-.chapter-heading--dark .chapter-kicker {
-  color: var(--color-phosphor-dim);
 }
 
 .chapter h2 {
@@ -75,10 +60,6 @@
   line-height: 1.55;
 }
 
-.chapter-heading--dark > p {
-  color: var(--color-phosphor-dim);
-}
-
 .scan-wipe {
   position: relative;
   z-index: 5;
@@ -88,280 +69,9 @@
   transform-origin: left;
 }
 
-.asset-frame {
-  position: relative;
-  min-height: 260px;
-  margin: 0;
-  overflow: hidden;
-  border: 1px solid var(--color-line-dark);
-  background: var(--color-ground);
-  color: var(--color-phosphor);
-}
-
-.asset-frame picture,
-.asset-frame img {
-  width: 100%;
-  height: 100%;
-}
-
-.asset-frame img {
-  object-fit: cover;
-}
-
-.asset-gap {
-  display: grid;
-  place-items: center;
-  isolation: isolate;
-}
-
-.asset-gap::before,
-.asset-gap::after {
-  position: absolute;
-  z-index: -1;
-  content: "";
-  background: var(--color-line-dark);
-  opacity: 0.6;
-}
-
-.asset-gap::before {
-  width: 1px;
-  height: 140%;
-  transform: rotate(38deg);
-}
-
-.asset-gap::after {
-  width: 140%;
-  height: 1px;
-  transform: rotate(38deg);
-}
-
-.asset-gap__inner {
-  display: grid;
-  max-width: 520px;
-  gap: 12px;
-  margin: 46px 24px;
-  padding: 24px;
-  border: 1px solid var(--color-phosphor-dim);
-  background: var(--color-ground);
-  font-family: var(--font-mono);
-}
-
-.asset-gap__inner strong {
-  font-size: clamp(1rem, 2vw, 1.4rem);
-  letter-spacing: 0.04em;
-}
-
-.asset-gap__inner p,
-.asset-gap__inner span {
-  margin: 0;
-  color: var(--color-phosphor-dim);
-  font-size: 11px;
-  line-height: 1.6;
-}
-
-.asset-gap__flag {
-  color: var(--color-phosphor) !important;
-  letter-spacing: 0.14em;
-}
-
-.asset-credit {
-  position: absolute;
-  z-index: 2;
-  right: 12px;
-  bottom: 10px;
-  left: 12px;
-  color: var(--color-phosphor-dim);
-  font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: 0.04em;
-}
-
-.approach__ambient {
-  position: relative;
-  display: grid;
-  min-height: 150dvh;
-  align-items: start;
-}
-
-/* A definite height, not min-height: the <img> inside resolves height:100%
-   against it. With only a min-height the percentage has nothing to resolve
-   against, the image falls back to its intrinsic ratio, and the hero renders
-   letterboxed instead of full bleed. */
-.approach__frame {
-  position: absolute;
-  inset: 0 0 auto;
-  height: 100dvh;
-}
-
-/* Grade the frame down so display type stays legible over a daylight
-   photograph and the frame sits inside the dark stage rather than fighting it.
-   Weighted to the bottom, where the headline block lands. */
-.approach__frame::after {
-  position: absolute;
-  z-index: 1;
-  inset: 0;
-  content: "";
-  pointer-events: none;
-  background:
-    linear-gradient(
-      to bottom,
-      color-mix(in srgb, var(--color-ground) 55%, transparent) 0%,
-      color-mix(in srgb, var(--color-ground) 25%, transparent) 30%,
-      color-mix(in srgb, var(--color-ground) 78%, transparent) 78%,
-      var(--color-ground) 100%
-    );
-}
-
-/* Credit sits at the foot of the frame. It previously shared the 104px band
-   with .approach__meta and the two overlapped into an unreadable smear. */
-.approach__frame .asset-credit {
-  z-index: 2;
-  top: auto;
-  bottom: 18px;
-  text-align: right;
-}
-
-.monitor-scanlines {
-  position: absolute;
-  z-index: 3;
-  inset: 0 0 auto;
-  height: 100dvh;
-  pointer-events: none;
-  background-image: repeating-linear-gradient(
-    to bottom,
-    transparent 0,
-    transparent 3px,
-    color-mix(in srgb, var(--color-phosphor) 3%, transparent) 4px
-  );
-}
-
-.approach__meta {
-  position: relative;
-  z-index: 4;
-  display: flex;
-  justify-content: space-between;
-  margin: 104px clamp(16px, 4vw, 64px) 0;
-  color: var(--color-phosphor-dim);
-}
-
-/* No panel behind the headline. The frame's own bottom-weighted grade already
-   carries legibility, and stacking an 88%-opaque box on top of it drew a hard
-   rectangular edge across the photograph that read as a mistake. */
-.approach__copy {
-  position: relative;
-  z-index: 4;
-  width: min(920px, calc(100% - 32px));
-  margin: clamp(220px, 42dvh, 460px) 16px 0;
-  padding: clamp(24px, 5vw, 56px) clamp(24px, 5vw, 56px) clamp(48px, 8vw, 96px);
-}
-
-.approach h1 {
-  display: grid;
-  margin: 0;
-  font-size: clamp(3rem, 8vw, 5.25rem);
-  font-weight: 650;
-  letter-spacing: -0.035em;
-  line-height: 0.94;
-}
-
-.approach__copy > p {
-  max-width: 540px;
-  margin: 28px 0 32px;
-  color: var(--color-phosphor-dim);
-  font-size: clamp(1rem, 2vw, 1.25rem);
-  line-height: 1.55;
-}
-
-.scroll-cue {
-  position: absolute;
-  z-index: 4;
-  top: calc(100dvh - 74px);
-  right: clamp(16px, 4vw, 64px);
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  min-height: 44px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-}
-
-.wall .chapter-heading {
-  margin-bottom: 64px;
-}
-
-.camera-wall {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 8px;
-}
-
-.camera-wall__tile {
-  grid-column: span 2;
-  min-height: 280px;
-  transition: border-color 320ms var(--ease-signal);
-}
-
-.camera-wall__tile:nth-child(1),
-.camera-wall__tile:nth-child(2) {
-  grid-column: span 3;
-}
-
-.camera-wall__tile img {
-  opacity: 0.32;
-  transition: opacity 320ms var(--ease-signal), filter 320ms var(--ease-signal);
-}
-
-.camera-wall__tile[data-active="true"] {
-  z-index: 2;
-  border-color: var(--color-phosphor);
-}
-
-.camera-wall__tile[data-active="true"] img {
-  opacity: 1;
-  filter: contrast(1.08);
-}
-
-@media (min-width: 900px) {
-  .approach__copy {
-    margin-left: clamp(32px, 8vw, 140px);
-  }
-}
-
-@media (min-width: 761px) and (max-width: 1024px) {
-  .camera-wall__tile,
-  .camera-wall__tile:nth-child(1),
-  .camera-wall__tile:nth-child(2) {
-    grid-column: span 3;
-  }
-}
-
 @media (max-width: 760px) {
   .chapter-shell {
     padding-top: 120px;
-  }
-
-  .camera-wall {
-    grid-template-columns: 1fr;
-  }
-
-  .camera-wall__tile,
-  .camera-wall__tile:nth-child(1),
-  .camera-wall__tile:nth-child(2) {
-    grid-column: auto;
-    min-height: 240px;
-  }
-
-  .approach__meta {
-    margin-top: 92px;
-  }
-
-  .approach__copy {
-    margin-top: 10dvh;
-  }
-
-  .scroll-cue span:first-child {
-    display: none;
   }
 }
 
