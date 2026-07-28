@@ -23,6 +23,10 @@
   --color-line-dark: #25292f;
   --color-line-light: #c9ced4;
   --color-detection: #ff3b30;
+  /* The same signal red for the light chapters. #ff3b30 is 5.62:1 on the dark
+     ground and only 3.27:1 on the plate, so it is a contrast failure the moment
+     it is used as text on paper. This one is 5.75:1 there. */
+  --color-detection-ink: #c1121f;
   --color-confirm: #ffb000;
   --font-grotesque: "Archivo Variable", Arial, sans-serif;
   --font-mono: "IBM Plex Mono", monospace;

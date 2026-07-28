@@ -16,7 +16,10 @@ export function SiteNav() {
         <span>COASTA</span>
       </a>
       <nav aria-label="Primary navigation">
-        <a href="#coverage">DFW coverage</a>
+        {/* This was "DFW coverage" pointing at #coverage, which stopped
+            existing when the coverage section came out and had been scrolling
+            nowhere ever since. */}
+        <a href="#how-it-differs">How it differs</a>
         <a href="#questions">FAQ</a>
         <PrimaryAction href="#waitlist">Join the waitlist</PrimaryAction>
       </nav>

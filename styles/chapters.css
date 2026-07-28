@@ -364,3 +364,137 @@
     display: none;
   }
 }
+
+/* Reported against detected. A ledger, not a marketing grid: hairline rules,
+   a mono index down the left, and the two answers set at the same weight so
+   the contrast comes from what they say rather than from one being shouted. */
+.contrast .chapter-shell {
+  min-height: 0;
+}
+
+.contrast__table {
+  width: 100%;
+  margin-top: clamp(56px, 7vw, 96px);
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.contrast__label {
+  display: block;
+  padding-bottom: 14px;
+  color: var(--color-plate-dim);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* The one place the eye is told which column is the point. */
+.contrast__label--live {
+  color: var(--color-detection-ink);
+}
+
+.contrast__table th,
+.contrast__table td {
+  padding: clamp(22px, 2.6vw, 34px) clamp(14px, 2vw, 32px) clamp(22px, 2.6vw, 34px) 0;
+  border-top: 1px solid var(--color-line-light);
+  font-weight: 400;
+  vertical-align: baseline;
+}
+
+.contrast__table thead th {
+  padding-block: 0;
+  border-top: 0;
+}
+
+.contrast__table tbody th {
+  width: 22%;
+  padding-right: clamp(20px, 3vw, 48px);
+}
+
+.contrast__index {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--color-plate-dim);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+}
+
+.contrast__dimension {
+  display: block;
+  font-size: clamp(1rem, 1.5vw, 1.15rem);
+  font-weight: 560;
+  letter-spacing: -0.01em;
+}
+
+.contrast__reported,
+.contrast__detected {
+  width: 39%;
+  font-size: clamp(1.02rem, 1.7vw, 1.28rem);
+  line-height: 1.5;
+}
+
+/* Dimmed rather than struck through: it is how most alerts work today, not a
+   thing that is wrong. The point is that Coasta does not depend on it. */
+.contrast__reported {
+  color: var(--color-plate-dim);
+}
+
+.contrast__detected {
+  color: var(--color-plate-ink);
+}
+
+@media (max-width: 860px) {
+  /* The three-column grid stops working long before the text does, so each row
+     becomes its own small block with the labels repeated inline. */
+  .contrast__table,
+  .contrast__table tbody,
+  .contrast__table tr,
+  .contrast__table tbody th,
+  .contrast__table td {
+    display: block;
+    width: auto;
+  }
+
+  .contrast__table thead {
+    display: none;
+  }
+
+  .contrast__table tr {
+    border-top: 1px solid var(--color-line-light);
+    padding-block: 28px;
+  }
+
+  .contrast__table tbody th,
+  .contrast__table td {
+    padding: 0;
+    border-top: 0;
+  }
+
+  .contrast__reported,
+  .contrast__detected {
+    margin-top: 16px;
+  }
+
+  .contrast__reported::before,
+  .contrast__detected::before {
+    display: block;
+    margin-bottom: 6px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .contrast__reported::before {
+    content: "Reported";
+    color: var(--color-plate-dim);
+  }
+
+  .contrast__detected::before {
+    content: "Detected";
+    color: var(--color-detection-ink);
+  }
+}
