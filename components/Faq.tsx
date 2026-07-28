@@ -29,8 +29,13 @@ const ITEMS = [
 export function Faq() {
   return (
     <div className="faq-list" id="questions">
-      {ITEMS.map((item) => (
-        <details key={item.question}>
+      {ITEMS.map((item, i) => (
+        <details
+          data-assemble
+          data-assemble-rule
+          key={item.question}
+          style={{ "--i": i } as React.CSSProperties}
+        >
           <summary>
             <span>{item.question}</span>
             <span aria-hidden="true" className="faq-toggle">

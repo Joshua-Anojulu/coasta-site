@@ -126,3 +126,43 @@ test("never implies captured model output", async ({ page }) => {
   await expect(intro.locator(".detection-box")).toHaveCount(0)
   await expect(intro.locator("canvas")).toHaveCount(0)
 })
+
+/* The assembly mechanic hides content and then shows it again. That is only
+   safe while both escape hatches hold, and if either breaks the page still
+   looks perfect to anyone testing it in a normal browser: the content is
+   simply gone for everyone else. Hence these two. */
+
+const hiddenAssembled = (page: import("@playwright/test").Page) =>
+  page.evaluate(() =>
+    [...document.querySelectorAll("[data-assemble]")].filter(
+      (el) => Number(getComputedStyle(el).opacity) < 0.99,
+    ).length,
+  )
+
+test("assembles nothing when reduced motion is preferred", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "reduced-motion")
+
+  // Given: the page has loaded without any scrolling at all.
+  await page.waitForLoadState("networkidle")
+
+  // Then: every block is already whole, wherever it sits on the page.
+  expect(await page.locator("[data-assemble]").count()).toBeGreaterThan(0)
+  expect(await hiddenAssembled(page)).toBe(0)
+  expect(await page.evaluate(() => document.documentElement.dataset["assembly"])).toBeUndefined()
+})
+
+test.describe("without JavaScript", () => {
+  test.use({ javaScriptEnabled: false })
+
+  test("renders the whole page rather than hiding what it cannot animate", async ({
+    page,
+  }) => {
+    // Given: no script has run, so nothing can ever mark a block as arrived.
+    await page.goto("/")
+
+    // Then: the rule that hides them never matched in the first place.
+    expect(await page.locator("[data-assemble]").count()).toBeGreaterThan(0)
+    expect(await hiddenAssembled(page)).toBe(0)
+    await expect(page.getByText("A reported hazard is one somebody already hit.")).toBeVisible()
+  })
+})

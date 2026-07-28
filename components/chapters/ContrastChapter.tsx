@@ -34,7 +34,7 @@ export function ContrastChapter() {
   return (
     <section className="chapter chapter-light contrast" id="how-it-differs">
       <div className="chapter-shell">
-        <div className="chapter-heading">
+        <div className="chapter-heading" data-assemble>
           <span className="chapter-kicker">REPORTED / DETECTED</span>
           <h2>A reported hazard is one somebody already hit.</h2>
           <p>
@@ -62,7 +62,12 @@ export function ContrastChapter() {
           </thead>
           <tbody>
             {ROWS.map((row, i) => (
-              <tr key={row.dimension}>
+              <tr
+                data-assemble
+                data-assemble-rule
+                key={row.dimension}
+                style={{ "--i": i } as React.CSSProperties}
+              >
                 <th scope="row">
                   <span className="contrast__index">
                     {String(i + 1).padStart(2, "0")}

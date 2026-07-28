@@ -6,13 +6,13 @@ export function GroundChapter() {
     <section className="chapter chapter-light ground">
       <div className="chapter-shell ground__grid">
         <div>
-          <div className="chapter-heading">
+          <div className="chapter-heading" data-assemble>
             <span className="chapter-kicker">GROUND / QUESTIONS</span>
             <h2>What drivers need to know.</h2>
           </div>
           <Faq />
         </div>
-        <aside className="waitlist-panel">
+        <aside className="waitlist-panel" data-assemble>
           <span className="chapter-kicker">DFW / EARLY ACCESS</span>
           <h3>See the road sooner.</h3>
           <p>

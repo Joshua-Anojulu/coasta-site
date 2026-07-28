@@ -492,3 +492,71 @@
     transform: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Assembly: the content layer builds as you reach it.
+
+   Scoped entirely to html[data-assembly="on"], which an inline script in the
+   layout sets only when JavaScript runs and reduced motion is not requested.
+   Without it none of these rules match and the page renders complete, which is
+   the whole reason the hidden state is safe to have at all.
+   --------------------------------------------------------------------------- */
+:root[data-assembly="on"] [data-assemble] {
+  opacity: 0;
+  transform: translateY(var(--assemble-y, 18px));
+  transition:
+    opacity 520ms var(--ease-signal),
+    transform 520ms var(--ease-signal);
+  transition-delay: calc(var(--i, 0) * 70ms);
+  will-change: opacity, transform;
+}
+
+:root[data-assembly="on"] [data-assemble][data-assembled="true"] {
+  opacity: 1;
+  transform: none;
+  will-change: auto;
+}
+
+/* A keyboard user must never be tabbed into something that has not arrived
+   yet. Focus inside an unassembled block finishes it immediately. */
+:root[data-assembly="on"] [data-assemble]:focus-within {
+  opacity: 1;
+  transform: none;
+  transition-duration: 0s;
+  transition-delay: 0s;
+}
+
+/* The arrival signature: a hairline draws across the row and then fades out,
+   the same gesture as the scan wipe that divides the chapters. It is what makes
+   this read as the page assembling rather than as a generic fade-up. */
+:root[data-assembly="on"] [data-assemble-rule] {
+  position: relative;
+}
+
+:root[data-assembly="on"] [data-assemble-rule]::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  inset-inline: 0;
+  top: -1px;
+  height: 1px;
+  background: var(--color-detection-ink);
+  transform: scaleX(0);
+  transform-origin: left;
+  pointer-events: none;
+}
+
+:root[data-assembly="on"] [data-assemble-rule][data-assembled="true"]::after {
+  transform: scaleX(1);
+  opacity: 0;
+  transition:
+    transform 620ms var(--ease-signal),
+    opacity 460ms linear;
+  transition-delay: calc(var(--i, 0) * 70ms), calc(var(--i, 0) * 70ms + 420ms);
+}
+
+/* The hero is the one block that assembles on load rather than on approach, so
+   it rises a little further and takes a little longer. */
+.chapter-intro [data-assemble] {
+  --assemble-y: 26px;
+}

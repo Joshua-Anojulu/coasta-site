@@ -138,6 +138,9 @@ picture {
   display: grid;
   min-height: 44px;
   place-items: center;
+  /* Two-word labels were wrapping mid-phrase in the narrow nav column, which
+     read as three stacked words rather than one link. */
+  white-space: nowrap;
   color: var(--color-phosphor-dim);
 }
 

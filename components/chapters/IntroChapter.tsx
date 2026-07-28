@@ -7,22 +7,31 @@ import { PrimaryAction } from "@/components/PrimaryAction"
  *
  * Hero budget (Ch2.12): eyebrow, headline, subtext, CTA, one support line.
  * The scroll cue sits at the viewport bottom and does not count.
+ *
+ * The five parts land in order rather than arriving together, which is the same
+ * mechanic the rest of the page uses. See components/Assembly.tsx.
  */
 export function IntroChapter() {
   return (
     <section className="chapter-intro" id="approach">
       <div className="intro-inner">
-        <p className="intro-eyebrow">Dallas / Fort Worth</p>
-        <h1 className="intro-head">
+        <p className="intro-eyebrow" data-assemble style={{ "--i": 0 } as React.CSSProperties}>
+          Dallas / Fort Worth
+        </p>
+        <h1 className="intro-head" data-assemble style={{ "--i": 1 } as React.CSSProperties}>
           Every camera.
           <br />
           Now a sensor.
         </h1>
-        <p className="intro-sub">
+        <p className="intro-sub" data-assemble style={{ "--i": 2 } as React.CSSProperties}>
           Coasta reads the roadway through cameras already looking at DFW.
         </p>
-        <PrimaryAction href="#waitlist">Join the waitlist</PrimaryAction>
-        <p className="intro-support">DFW first. We will email you when your area goes live.</p>
+        <div data-assemble style={{ "--i": 3 } as React.CSSProperties}>
+          <PrimaryAction href="#waitlist">Join the waitlist</PrimaryAction>
+        </div>
+        <p className="intro-support" data-assemble style={{ "--i": 4 } as React.CSSProperties}>
+          DFW first. We will email you when your area goes live.
+        </p>
       </div>
 
       {/* Overriding the no-scroll-cue default: the hero is full bleed with no
